@@ -11,13 +11,13 @@ import {
 interface Message { id: number; role: "user" | "nova"; text: string; suggestions?: string[]; }
 
 const actions = [
-  { icon: BookOpen, title: "Learn a Topic", titleBn: "একটি বিষয় শিখুন", prompt: "Teach me my current topic step by step." },
-  { icon: Lightbulb, title: "Explain Something", titleBn: "কিছু বুঝিয়ে দিন", prompt: "Explain my current topic simply." },
-  { icon: FlaskConical, title: "Practice", titleBn: "অনুশীলন", prompt: "Give me a practice question." },
-  { icon: Brain, title: "Test My Knowledge", titleBn: "আমার জ্ঞান যাচাই করুন", prompt: "Test me on my current topic." },
-  { icon: Map, title: "Build My Roadmap", titleBn: "আমার রোডম্যাপ বানান", prompt: "Build me a learning roadmap for Cybersecurity." },
-  { icon: RotateCcw, title: "Revise", titleBn: "রিভিশন", prompt: "Give me a quick revision of my current topic." },
-  { icon: FileText, title: "Learn From My File", titleBn: "আমার ফাইল থেকে শিখুন", prompt: "I want to learn from an educational file." },
+  { id: "learn", icon: BookOpen, title: "Learn a Topic", titleBn: "একটি বিষয় শিখুন", prompt: "Teach me my current topic step by step." },
+  { id: "explain", icon: Lightbulb, title: "Explain Something", titleBn: "কিছু বুঝিয়ে দিন", prompt: "Explain my current topic simply." },
+  { id: "practice", icon: FlaskConical, title: "Practice", titleBn: "অনুশীলন", prompt: "Give me a practice question." },
+  { id: "test", icon: Brain, title: "Test My Knowledge", titleBn: "আমার জ্ঞান যাচাই করুন", prompt: "Test me on my current topic." },
+  { id: "roadmap", icon: Map, title: "Build My Roadmap", titleBn: "আমার রোডম্যাপ বানান", prompt: "Build me a learning roadmap for Cybersecurity." },
+  { id: "revise", icon: RotateCcw, title: "Revise", titleBn: "রিভিশন", prompt: "Give me a quick revision of my current topic." },
+  { id: "file", icon: FileText, title: "Learn From My File", titleBn: "আমার ফাইল থেকে শিখুন", prompt: "I want to learn from an educational file." },
 ];
 
 const modes: Array<{ id: NovaMode; label: string; labelBn: string; color: string }> = [
@@ -29,7 +29,7 @@ const modes: Array<{ id: NovaMode; label: string; labelBn: string; color: string
 ];
 
 export const NovaAssistant: React.FC = () => {
-  const { isBn, user, curriculum, read, answers, lastVisited } = useStore();
+  const { isBn, user, curriculum, read, answers, lastVisited, admin } = useStore();
   const L = (en: string, bn: string) => (isBn ? bn : en);
   const [language, setLanguage] = useState<NovaLanguage>("auto");
   const [mode, setMode] = useState<NovaMode>("standard");
@@ -44,10 +44,15 @@ export const NovaAssistant: React.FC = () => {
   const recommendation = getNextRecommendation(context);
   const completed = read.length;
   const total = curriculum.reduce((sum, course) => sum + course.chapters.length, 0);
+  const visibleActions = actions.filter((action) => admin.novaTools[action.id] !== false);
+  const visibleModes = modes.filter((item) => admin.novaModes[item.id] !== false);
+  React.useEffect(() => {
+    if (admin.novaModes[mode] === false) setMode(visibleModes[0]?.id || "standard");
+  }, [admin.novaModes, mode, visibleModes]);
 
   const askNova = async (value = prompt) => {
     const clean = value.trim();
-    if (!clean || loading) return;
+    if (!clean || loading || !admin.novaEnabled) return;
     setError("");
     const userMessage = { id: Date.now(), role: "user" as const, text: clean };
     const nextMessages = [...messages, userMessage];
@@ -62,6 +67,8 @@ export const NovaAssistant: React.FC = () => {
           messages: nextMessages.map((message) => ({ role: message.role === "nova" ? "assistant" : "user", content: message.text })),
           language,
           mode,
+          guidance: admin.novaGuidance,
+          responseLength: admin.novaResponseLength,
           context: current ? { course: current.course.title, chapter: current.chapter.title, intro: current.chapter.intro } : undefined,
         }),
       });
@@ -86,6 +93,7 @@ export const NovaAssistant: React.FC = () => {
 
   return (
     <div className="nova-page space-y-6 pb-8">
+      {!admin.novaEnabled && <section className="rounded-3xl border border-amber-400/30 bg-amber-400/[0.08] p-5 text-center text-sm text-amber-100">{L("Nova is temporarily offline. Please check back soon.", "Nova সাময়িকভাবে বন্ধ আছে। পরে আবার চেষ্টা করো।")}</section>}
       <header className="nova-hero relative overflow-hidden rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/15 via-slate-950/50 to-emerald-500/10 p-4 sm:p-6 anim-fade-up">
         <div className="absolute right-0 top-0 h-48 w-48 translate-x-1/4 -translate-y-1/4 rounded-full bg-cyan-400/10 blur-3xl" />
         <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -101,8 +109,8 @@ export const NovaAssistant: React.FC = () => {
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <section className="nova-actions glass rounded-3xl p-4 sm:p-5 anim-fade-up anim-delay-1">
           <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">{L("Quick actions", "দ্রুত কাজ")}</p><h2 className="mt-1 text-xl font-black">{L("Choose your learning move", "তোমার শেখার কাজ বেছে নাও")}</h2></div><Target size={20} className="text-cyan-300" /></div>
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {actions.map(({ icon: Icon, title, titleBn, prompt: actionPrompt }) => <button key={title} onClick={() => askNova(actionPrompt)} className="group flex min-w-max items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-left transition hover:border-cyan-400/40 hover:bg-cyan-400/[0.06] cursor-pointer"><Icon size={15} className="text-cyan-300 transition group-hover:scale-110" /><span className="text-xs font-bold">{isBn ? titleBn : title}</span></button>)}
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {visibleActions.map(({ icon: Icon, title, titleBn, prompt: actionPrompt }) => <button key={title} onClick={() => void askNova(actionPrompt)} disabled={!admin.novaEnabled} className="group flex min-h-16 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-left transition hover:border-cyan-400/40 hover:bg-cyan-400/[0.06] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-cyan-400/10 text-cyan-300"><Icon size={17} className="transition group-hover:scale-110" /></span><span className="text-xs font-bold leading-tight">{isBn ? titleBn : title}</span></button>)}
           </div>
         </section>
 

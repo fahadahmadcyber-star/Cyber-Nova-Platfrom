@@ -239,6 +239,11 @@ export interface AdminContent {
   announceBn: string;
   showAnnounce: boolean;
   registrations: number;
+  novaEnabled: boolean;
+  novaGuidance: string;
+  novaResponseLength: "concise" | "balanced" | "detailed";
+  novaTools: Record<string, boolean>;
+  novaModes: Record<string, boolean>;
 }
 export type Route = {
   view: "landing" | "login" | "home" | "academy" | "course" | "chapter" | "quiz" | "nova" | "profile" | "admin" | "help" | "finalExam";
@@ -268,6 +273,11 @@ const DEFAULT_ADMIN: AdminContent = {
   announceBn: "সাইবার নোভা সিজন ০৪ ভর্তি চলছে · ২৮ টি মিশন · ৪ টি ট্র্যাক · শূন্য থেকে হিরো",
   showAnnounce: true,
   registrations: 247,
+  novaEnabled: true,
+  novaGuidance: "",
+  novaResponseLength: "balanced",
+  novaTools: { learn: true, explain: true, practice: true, test: true, roadmap: true, revise: true, file: true },
+  novaModes: { simple: true, standard: true, deep: true, exam: true, practice: true },
 };
 
 const LS_KEY = "cybernova_state_v1";

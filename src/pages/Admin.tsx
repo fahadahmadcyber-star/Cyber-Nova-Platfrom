@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   ShieldHalf, LayoutDashboard, Users, BookOpen, Palette, BellRing, Eye, Inbox,
   Plus, Send, RotateCcw, CheckCircle2, Settings, ClipboardList, UserX, UserCheck, Trash2, RefreshCw,
+  Bot,
 } from "lucide-react";
 import { useStore, AdminContent } from "../store";
 import { CurriculumEditor } from "./admin/CurriculumEditor";
@@ -12,7 +13,7 @@ import { EmptyState } from "../components/ui";
 import { fmtN } from "./Home";
 import { deleteUser as deleteFirestoreUser, subscribeToUsers, updateUserStatus, type FirestoreUser } from "../lib/firebaseAdmin";
 
-type Tab = "dashboard" | "users" | "curriculum" | "exams" | "inbox" | "design" | "broadcast" | "settings";
+type Tab = "dashboard" | "users" | "curriculum" | "exams" | "inbox" | "assistant" | "design" | "broadcast" | "settings";
 
 const Field: React.FC<{ label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string }> = ({
   label, value, onChange, multiline, placeholder,
@@ -110,6 +111,7 @@ export const Admin: React.FC = () => {
     { id: "curriculum", label: L("Curriculum", "কারিকুলাম"), icon: BookOpen, badge: 0 },
     { id: "exams", label: L("Exam Editor", "এক্সাম এডিটর"), icon: ClipboardList, badge: 0 },
     { id: "inbox", label: L("Messages Inbox", "নোভা ইনবক্স"), icon: Inbox, badge: 0 },
+    { id: "assistant", label: L("Nova AI", "নোভা AI"), icon: Bot, badge: 0 },
     { id: "design", label: L("Design", "ডিজাইন"), icon: Palette, badge: 0 },
     { id: "broadcast", label: L("Broadcast", "ব্রডকাস্ট"), icon: BellRing, badge: 0 },
     { id: "settings", label: L("Settings & Privacy", "সেটিংস ও প্রাইভেসি"), icon: Settings, badge: 0 },
@@ -261,6 +263,36 @@ export const Admin: React.FC = () => {
 
       {/* ============ INBOX ============ */}
       {tab === "inbox" && <NovaInbox />}
+
+      {tab === "assistant" && (
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="glass rounded-3xl p-6 space-y-5">
+            <div>
+              <h3 className="font-bold flex items-center gap-2"><Bot size={16} className="text-cyan-300" /> {L("Nova AI Control", "Nova AI নিয়ন্ত্রণ")}</h3>
+              <p className="mt-1 text-xs text-slate-500">{L("Control what students can see and how Nova responds.", "শিক্ষার্থীরা কী দেখবে এবং Nova কীভাবে উত্তর দেবে তা নিয়ন্ত্রণ করো।")}</p>
+            </div>
+            <button onClick={() => setAdmin({ novaEnabled: !admin.novaEnabled })} className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-bold cursor-pointer ${admin.novaEnabled ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-200" : "border-rose-400/30 bg-rose-400/10 text-rose-200"}`}>
+              {admin.novaEnabled ? L("Nova is live", "Nova চালু আছে") : L("Nova is offline", "Nova বন্ধ আছে")}
+              <span className={`relative h-6 w-11 rounded-full ${admin.novaEnabled ? "bg-emerald-400/40" : "bg-white/10"}`}><span className={`absolute top-1 h-4 w-4 rounded-full transition-all ${admin.novaEnabled ? "left-6 bg-emerald-300" : "left-1 bg-slate-500"}`} /></span>
+            </button>
+            <Field label={L("Nova guidance (optional)", "Nova guidance (ঐচ্ছিক)")} value={admin.novaGuidance} onChange={set("novaGuidance")} multiline placeholder={L("Example: Keep answers beginner-friendly and mention Academy lessons when relevant.", "উদাহরণ: উত্তর সহজ রাখো এবং প্রাসঙ্গিক হলে Academy lesson-এর কথা বলো।")} />
+            <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-300">{L("Response length", "উত্তরের দৈর্ঘ্য")}</span><select value={admin.novaResponseLength} onChange={(e) => setAdmin({ novaResponseLength: e.target.value as AdminContent["novaResponseLength"] })} className="w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-2.5 text-sm text-slate-200 outline-none"><option value="concise">{L("Concise", "সংক্ষিপ্ত")}</option><option value="balanced">{L("Balanced", "ভারসাম্যপূর্ণ")}</option><option value="detailed">{L("Detailed", "বিস্তারিত")}</option></select></label>
+          </div>
+          <div className="space-y-6">
+            <div className="glass rounded-3xl p-6">
+              <h3 className="font-bold mb-4">{L("Student tools", "শিক্ষার্থীদের টুল")}</h3>
+              <div className="space-y-2">{[
+                ["learn", "Learn a Topic", "একটি বিষয় শিখুন"], ["explain", "Explain Something", "কিছু বুঝিয়ে দিন"], ["practice", "Practice", "অনুশীলন"], ["test", "Test My Knowledge", "আমার জ্ঞান যাচাই"], ["roadmap", "Build My Roadmap", "রোডম্যাপ বানাও"], ["revise", "Revise", "রিভিশন"], ["file", "Learn From My File", "ফাইল থেকে শেখা"],
+              ].map(([id, en, bn]) => <button key={id} onClick={() => setAdmin({ novaTools: { ...admin.novaTools, [id]: !admin.novaTools[id] } })} className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-xs font-bold cursor-pointer ${admin.novaTools[id] !== false ? "border-cyan-400/20 bg-cyan-400/[0.05] text-slate-200" : "border-white/10 bg-white/[0.02] text-slate-500"}`}><span>{isBn ? bn : en}</span><span className={`h-2 w-2 rounded-full ${admin.novaTools[id] !== false ? "bg-emerald-300" : "bg-slate-600"}`} /></button>)}
+              </div>
+            </div>
+            <div className="glass rounded-3xl p-6">
+              <h3 className="font-bold mb-4">{L("Teaching modes", "শেখানোর মোড")}</h3>
+              <div className="grid grid-cols-2 gap-2">{[["simple", "Simple", "সহজ"], ["standard", "Standard", "সাধারণ"], ["deep", "Deep", "গভীর"], ["exam", "Exam", "পরীক্ষা"], ["practice", "Practice", "অনুশীলন"]].map(([id, en, bn]) => <button key={id} onClick={() => setAdmin({ novaModes: { ...admin.novaModes, [id]: !admin.novaModes[id] } })} className={`rounded-xl border px-3 py-2.5 text-xs font-bold cursor-pointer ${admin.novaModes[id] !== false ? "border-violet-400/30 bg-violet-400/10 text-violet-200" : "border-white/10 bg-white/[0.02] text-slate-500"}`}>{isBn ? bn : en}</button>)}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============ SETTINGS & PRIVACY ============ */}
       {tab === "settings" && <SettingsPrivacy />}
