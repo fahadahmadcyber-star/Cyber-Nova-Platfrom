@@ -15,13 +15,13 @@ function json(res, status, body) {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
-  if (!process.env.GEMINI_API_KEY) return json(res, 503, { error: "Nova AI is not configured yet." });
+
+  const geminiApiKey = String(process.env.GEMINI_API_KEY || "").trim();
+  if (!geminiApiKey) return json(res, 503, { error: "Nova AI is not configured yet." });
 
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
     const messages = Array.isArray(body.messages) ? body.messages : [];
-    const guidance = typeof body.guidance === "string" ? body.guidance.trim().slice(0, 2000) : "";
-    const responseLength = ["concise", "balanced", "detailed"].includes(body.responseLength) ? body.responseLength : "balanced";
     const latest = messages.at(-1)?.content || "";
     if (!latest.trim()) return json(res, 400, { error: "Message is required." });
     if (latest.length > 8000 || messages.length > 20) return json(res, 413, { error: "Message is too long." });
@@ -30,19 +30,17 @@ export default async function handler(req, res) {
     }
 
     const context = body.context ? `\nCurrent learning context (use only when relevant):\n${JSON.stringify(body.context).slice(0, 12000)}` : "";
-    const adminGuidance = guidance ? `\nAdministrator guidance (follow when it does not conflict with safety):\n${guidance}` : "";
-    const tokenLimits = { concise: 700, balanced: 1200, detailed: 1800 };
     const contents = messages.slice(-12).map((message) => ({
       role: message.role === "assistant" ? "model" : "user",
       parts: [{ text: String(message.content).slice(0, 8000) }],
     }));
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(geminiApiKey)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT + adminGuidance + context }] },
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT + context }] },
         contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: tokenLimits[responseLength] },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1200 },
       }),
     });
     const data = await response.json();

@@ -2,20 +2,25 @@ import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 
 /**
- * 🔥 CYBER NOVA — LIVE FIREBASE CONFIG (HARD-CODED)
- * Exact production credentials copied directly from the owner's
- * Firebase Console → Project Settings → Your apps → Web app.
+ * 🔥 CYBER NOVA — FIREBASE CONFIG
+ * Prefer values from Vercel / local .env so project settings can be changed
+ * without shipping stale credentials in the bundle.
  *
- * These values are baked into the bundle so the app works instantly
- * on Vercel without any environment variables.
+ * Keep the hard-coded values only as a legacy fallback for local builds or
+ * projects that have not yet set their VITE_FIREBASE_* environment variables.
  */
+const getEnv = (key: string, fallback: string) => {
+  const value = (import.meta.env[key] ?? fallback).toString().trim();
+  return value || fallback;
+};
+
 const firebaseConfig = {
-  apiKey: "AIzaSyA01ODjfD0hEvffGFuK9tumwZIerbuaOz8",
-  authDomain: "cyber-nova-91814.firebaseapp.com",
-  projectId: "cyber-nova-91814",
-  storageBucket: "cyber-nova-91814.firebasestorage.app",
-  messagingSenderId: "222532451314",
-  appId: "1:222532451314:web:1e9830b72cf81e90d7096b",
+  apiKey: getEnv("VITE_FIREBASE_API_KEY", "AIzaSyA01ODjfD0hEvffGFuK9tumwZIerbuaOz8"),
+  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN", "cyber-nova-91814.firebaseapp.com"),
+  projectId: getEnv("VITE_FIREBASE_PROJECT_ID", "cyber-nova-91814"),
+  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET", "cyber-nova-91814.firebasestorage.app"),
+  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID", "222532451314"),
+  appId: getEnv("VITE_FIREBASE_APP_ID", "1:222532451314:web:1e9830b72cf81e90d7096b"),
 };
 
 import { getFirestore, type Firestore } from "firebase/firestore";
