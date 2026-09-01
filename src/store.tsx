@@ -227,6 +227,11 @@ export interface SupportTicket {
   messages: SupportReply[];
 }
 export interface AdminContent {
+  siteNameEn: string;
+  siteNameBn: string;
+  siteTaglineEn: string;
+  siteTaglineBn: string;
+  logoUrl: string;
   heroTitleEn: string;
   heroTitleBn: string;
   heroSubEn: string;
@@ -239,6 +244,9 @@ export interface AdminContent {
   announceBn: string;
   showAnnounce: boolean;
   registrations: number;
+  missionCount: number;
+  trackCount: number;
+  badgeCount: number;
   novaEnabled: boolean;
   novaGuidance: string;
   novaResponseLength: "concise" | "balanced" | "detailed";
@@ -257,6 +265,11 @@ interface Toast {
 }
 
 const DEFAULT_ADMIN: AdminContent = {
+  siteNameEn: "CYBER NOVA",
+  siteNameBn: "সাইবার নোভা",
+  siteTaglineEn: "Security Academy",
+  siteTaglineBn: "সিকিউরিটি একাডেমি",
+  logoUrl: "",
   heroTitleEn: "Log In. Break the Code. Secure the Digital Universe.",
   heroTitleBn: "লগইন করো। কোড ভাঙো। ডিজিটাল মহাবিশ্ব সুরক্ষিত করো।",
   heroSubEn:
@@ -273,6 +286,9 @@ const DEFAULT_ADMIN: AdminContent = {
   announceBn: "সাইবার নোভা সিজন ০৪ ভর্তি চলছে · ২৮ টি মিশন · ৪ টি ট্র্যাক · শূন্য থেকে হিরো",
   showAnnounce: true,
   registrations: 247,
+  missionCount: 28,
+  trackCount: 4,
+  badgeCount: 7,
   novaEnabled: true,
   novaGuidance: "",
   novaResponseLength: "balanced",
@@ -513,6 +529,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [state]);
 
+  useEffect(() => {
+    const settingsRef = doc(db, "admin", "settings");
+    const unsubscribe = onSnapshot(settingsRef, (snap) => {
+      if (!snap.exists()) return;
+      const next = snap.data() as Partial<AdminContent>;
+      setState((prev) => ({
+        ...prev,
+        admin: { ...DEFAULT_ADMIN, ...prev.admin, ...next },
+      }));
+    }, (error) => {
+      console.error("[cybernova] Firestore admin config sync failed:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const curriculumRef = doc(db, "platform", "curriculum");
+    const unsubscribe = onSnapshot(curriculumRef, (snap) => {
+      if (!snap.exists()) return;
+      const payload = snap.data();
+      const nextCurriculum = Array.isArray(payload?.items) ? payload.items as Course[] : [];
+      if (!nextCurriculum.length) return;
+      const normalized = orderCurriculum(normalizeCurriculum(nextCurriculum));
+      setState((prev) => {
+        const same = JSON.stringify(prev.curriculum) === JSON.stringify(normalized);
+        return same ? prev : { ...prev, curriculum: normalized };
+      });
+    }, (error) => {
+      console.error("[cybernova] Firestore curriculum sync failed:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const payload = { items: state.curriculum, updatedAt: Date.now() };
+    setDoc(doc(db, "platform", "curriculum"), payload, { merge: true }).catch(() => {
+      /* ignore remote sync failures */
+    });
+  }, [state.curriculum]);
+
   // Real-time Firestore Sync for Support Tickets across ALL devices
   useEffect(() => {
     const ticketsRef = collection(db, "support_tickets");
@@ -523,7 +579,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       snapshot.forEach((doc) => {
         ticketsList.push(doc.data() as SupportTicket);
       });
-      // Merge live Firestore tickets directly into the local state
       setState((prev) => ({ ...prev, tickets: ticketsList }));
     }, (error) => {
       console.error("[cybernova] Firestore real-time sync failed:", error);
@@ -723,7 +778,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ...s.activity,
         ].slice(0, 40),
       })),
-    setAdmin: (p) => setState((s) => ({ ...s, admin: { ...s.admin, ...p } })),
+    setAdmin: (p) =>
+      setState((s) => {
+        const nextAdmin = { ...s.admin, ...p };
+        setDoc(doc(db, "admin", "settings"), nextAdmin, { merge: true }).catch(() => {
+          /* ignore remote sync failures */
+        });
+        return { ...s, admin: nextAdmin };
+      }),
     resetProgress: () =>
       setState((s) => ({
         ...s,

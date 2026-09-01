@@ -18,6 +18,9 @@ export const Landing: React.FC = () => {
   const courses = curriculum;
   const [open, setOpen] = useState(false);
   const isLogged = !!user;
+  const missionCount = admin.missionCount || courses.reduce((total, course) => total + course.chapters.length, 0);
+  const trackCount = admin.trackCount || courses.length;
+  const badgeCount = admin.badgeCount || 7;
 
   const L = (en: string, bn: string) => (isBn ? bn : en);
 
@@ -112,14 +115,11 @@ export const Landing: React.FC = () => {
               <Sparkles size={11} /> {L("The gamified cybersecurity academy", "গেমিফাইড সাইবার নিরাপত্তা অ্যাকাডেমি")}
             </span>
             <h1 className="mt-5 text-4xl sm:text-5xl lg:text-[3.5rem] font-black leading-[1.08] max-w-xl">
-              <span className="neon-text text-glow-cyan">{L("Learn to Hack. Learn to Defend.", "হ্যাক শেখো। রক্ষা শেখো।")}</span>
+              <span className="neon-text text-glow-cyan">{isBn ? admin.heroTitleBn : admin.heroTitleEn}</span>
               <span className="block text-white mt-2">{L("Become Unstoppable.", "অপরাজেয় হও।")}</span>
             </h1>
             <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-slate-400">
-              {L(
-                "From absolute zero to ethical-hacking pro — 28 missions, live Kali labs, quizzes and real XP. 100% in your browser, in Bangla & English.",
-                "একদম শূন্য থেকে এথিক্যাল-হ্যাকিং প্রো — ২৮টি মিশন, লাইভ কালি ল্যাব, কুইজ আর আসল XP। সম্পূর্ণ তোমার ব্রাউজারে, বাংলা ও ইংরেজিতে।"
-              )}
+              {isBn ? admin.heroSubBn : admin.heroSubEn}
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               {isLogged ? (
@@ -149,9 +149,9 @@ export const Landing: React.FC = () => {
             {/* stat strip */}
             <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-md">
               {[
-                { v: fmtN(28, isBn), l: L("Missions", "মিশন") },
-                { v: fmtN(4, isBn), l: L("Tracks", "ট্র্যাক") },
-                { v: fmtN(7, isBn), l: L("Badges", "ব্যাজ") },
+                { v: fmtN(missionCount, isBn), l: L("Missions", "মিশন") },
+                { v: fmtN(trackCount, isBn), l: L("Tracks", "ট্র্যাক") },
+                { v: fmtN(badgeCount, isBn), l: L("Badges", "ব্যাজ") },
                 { v: "২", l: L("Languages", "ভাষা") },
               ].map((s) => (
                 <div key={s.l} className="glass rounded-2xl p-3 text-center">

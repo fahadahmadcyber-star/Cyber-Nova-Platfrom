@@ -1,7 +1,14 @@
 import React from "react";
 
 /* Geometric "Nova" mark: a hexagonal core with circuit traces and an orbiting ring. */
+import { useStore } from "../store";
+
 export const LogoMark: React.FC<{ size?: number }> = ({ size = 40 }) => {
+  const { admin } = useStore();
+  if (admin.logoUrl) {
+    return <img src={admin.logoUrl} alt={admin.siteNameEn || "Cyber Nova"} width={size} height={size} className="rounded-full object-cover border border-white/10 bg-slate-950" style={{ width: size, height: size }} />;
+  }
+
   return (
     <svg
       width={size}
@@ -18,9 +25,7 @@ export const LogoMark: React.FC<{ size?: number }> = ({ size = 40 }) => {
           <stop offset="1" stopColor="#34d399" />
         </linearGradient>
       </defs>
-      {/* orbit ring */}
       <ellipse cx="32" cy="32" rx="28" ry="10.5" stroke="#22d3ee" strokeOpacity="0.35" strokeWidth="1.4" transform="rotate(38 32 32)" strokeDasharray="4 3" />
-      {/* hexagon shield */}
       <path
         d="M32 4 L55 16 V40 L32 60 L9 40 V16 Z"
         fill="rgba(8,15,32,0.85)"
@@ -28,13 +33,10 @@ export const LogoMark: React.FC<{ size?: number }> = ({ size = 40 }) => {
         strokeWidth="2.2"
         strokeLinejoin="round"
       />
-      {/* inner circuit traces */}
       <path d="M32 12 L42 17 L42 30" stroke="#22d3ee" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
       <path d="M32 12 L22 17 L22 34 L28 40" stroke="#34d399" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-      {/* nodes */}
       <circle cx="42" cy="30" r="2.4" fill="#22d3ee" />
       <circle cx="22" cy="34" r="2.4" fill="#34d399" />
-      {/* central nucleus */}
       <circle cx="32" cy="32" r="6.5" fill="url(#lg-core)" opacity="0.9" />
       <circle cx="32" cy="32" r="2.6" fill="#04141f" />
       <circle cx="32" cy="32" r="1.1" fill="#a7f3d0" />
@@ -47,6 +49,10 @@ export const Logo: React.FC<{ size?: number; withText?: boolean; compact?: boole
   withText = true,
   compact = false,
 }) => {
+  const { isBn, admin } = useStore();
+  const brandName = isBn ? (admin.siteNameBn || "সাইবার নোভা") : (admin.siteNameEn || "CYBER NOVA");
+  const brandTag = isBn ? (admin.siteTaglineBn || "সিকিউরিটি একাডেমি") : (admin.siteTaglineEn || "Security Academy");
+
   return (
     <span className="inline-flex items-center gap-2.5 select-none">
       <LogoMark size={size} />
@@ -56,11 +62,11 @@ export const Logo: React.FC<{ size?: number; withText?: boolean; compact?: boole
             className="block font-black tracking-[0.14em] neon-text"
             style={{ fontFamily: "var(--font-display)", fontSize: compact ? 14 : 17 }}
           >
-            CYBER·NOVA
+            {brandName}
           </span>
           {!compact && (
             <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.42em] text-slate-500">
-              Security Academy
+              {brandTag}
             </span>
           )}
         </span>

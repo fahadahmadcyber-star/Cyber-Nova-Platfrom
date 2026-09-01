@@ -301,7 +301,12 @@ export const Admin: React.FC = () => {
       {tab === "design" && (
         <div className="grid lg:grid-cols-2 gap-6">
           <div className="glass rounded-3xl p-6 space-y-4">
-            <h3 className="font-bold flex items-center gap-2 mb-1"><Palette size={15} className="text-fuchsia-300" /> {L("Hero & Banner", "হিরো ও ব্যানার")}</h3>
+            <h3 className="font-bold flex items-center gap-2 mb-1"><Palette size={15} className="text-fuchsia-300" /> {L("Brand & Platform Design", "ব্র্যান্ড ও প্ল্যাটফর্ম ডিজাইন")}</h3>
+            <Field label={L("Site name (English)", "সাইটের নাম (ইংরেজি)")} value={admin.siteNameEn} onChange={set("siteNameEn")} />
+            <Field label={L("Site name (Bangla)", "সাইটের নাম (বাংলা)")} value={admin.siteNameBn} onChange={set("siteNameBn")} />
+            <Field label={L("Tagline (English)", "ট্যাগলাইন (ইংরেজি)")} value={admin.siteTaglineEn} onChange={set("siteTaglineEn")} />
+            <Field label={L("Tagline (Bangla)", "ট্যাগলাইন (বাংলা)")} value={admin.siteTaglineBn} onChange={set("siteTaglineBn")} />
+            <Field label={L("Custom logo URL", "কাস্টম লোগো URL")} value={admin.logoUrl} onChange={set("logoUrl")} placeholder="https://..." />
             <Field label={t("adminHeroTitleEn")} value={admin.heroTitleEn} onChange={set("heroTitleEn")} />
             <Field label={t("adminHeroTitleBn")} value={admin.heroTitleBn} onChange={set("heroTitleBn")} />
             <Field label={t("adminHeroSubEn")} value={admin.heroSubEn} onChange={set("heroSubEn")} multiline />
@@ -310,6 +315,20 @@ export const Admin: React.FC = () => {
             <Field label={t("adminBannerTitleBn")} value={admin.bannerTitleBn} onChange={set("bannerTitleBn")} />
             <Field label={t("adminBannerBodyEn")} value={admin.bannerBodyEn} onChange={set("bannerBodyEn")} multiline />
             <Field label={t("adminBannerBodyBn")} value={admin.bannerBodyBn} onChange={set("bannerBodyBn")} multiline />
+            <div className="grid sm:grid-cols-3 gap-3 pt-2">
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-300 mb-1.5 block">{L("Missions", "মিশন")}</span>
+                <input type="number" min={0} value={admin.missionCount} onChange={(e) => setAdmin({ missionCount: Math.max(0, Number(e.target.value || 0)) })} className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-300 mb-1.5 block">{L("Tracks", "ট্র্যাক")}</span>
+                <input type="number" min={0} value={admin.trackCount} onChange={(e) => setAdmin({ trackCount: Math.max(0, Number(e.target.value || 0)) })} className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-300 mb-1.5 block">{L("Badges", "ব্যাজ")}</span>
+                <input type="number" min={0} value={admin.badgeCount} onChange={(e) => setAdmin({ badgeCount: Math.max(0, Number(e.target.value || 0)) })} className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm" />
+              </label>
+            </div>
           </div>
           <div className="glass rounded-3xl p-6">
             <h3 className="font-bold mb-3">{L("Live Preview", "লাইভ প্রিভিউ")}</h3>
@@ -320,7 +339,8 @@ export const Admin: React.FC = () => {
             </div>
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
               <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-slate-500 mb-2">{L("Brand", "ব্র্যান্ড")}</p>
-              <Logo size={48} />
+              {admin.logoUrl ? <img src={admin.logoUrl} alt="platform logo" className="h-16 w-16 rounded-full border border-white/10 object-cover bg-slate-950" /> : <Logo size={48} />}
+              <div className="mt-3 text-xs text-slate-300">{isBn ? admin.siteNameBn : admin.siteNameEn}</div>
             </div>
           </div>
         </div>

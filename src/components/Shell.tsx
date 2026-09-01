@@ -124,7 +124,7 @@ const SearchBox: React.FC<{ onPick: () => void }> = ({ onPick }) => {
 
 /* ================= sidebar ================= */
 const SideContent: React.FC<{ onNav: () => void }> = ({ onNav }) => {
-  const { route, nav, t, tn, isBn, user, xp, read, logout, curriculum } = useStore();
+  const { route, nav, t, tn, isBn, user, xp, read, logout, curriculum, admin } = useStore();
   const lv = levelFor(xp);
 
   // The Owner Admin Panel is hidden from normal users. It only appears in the
@@ -137,7 +137,9 @@ const SideContent: React.FC<{ onNav: () => void }> = ({ onNav }) => {
     { key: "home", label: isBn ? "ড্যাশবোর্ড" : "Dashboard", icon: LayoutDashboard, view: "home" as const },
     { key: "academy", label: t("navAcademy"), icon: GraduationCap, view: "academy" as const },
     { key: "quiz", label: t("navQuiz"), icon: Swords, view: "quiz" as const },
-    { key: "nova", label: isBn ? "নোভা স্টাডি অ্যাসিস্ট্যান্ট" : "Nova Study Assistant", icon: Bot, view: "nova" as const },
+    ...(admin.novaEnabled
+      ? [{ key: "nova", label: isBn ? "নোভা স্টাডি অ্যাসিস্ট্যান্ট" : "Nova Study Assistant", icon: Bot, view: "nova" as const }]
+      : []),
     { key: "help", label: isBn ? "নোভা হেল্প" : "Nova Help", icon: LifeBuoy, view: "help" as const },
     { key: "profile", label: t("navProfile"), icon: UserCircle2, view: "profile" as const },
     ...(user?.role === "admin"

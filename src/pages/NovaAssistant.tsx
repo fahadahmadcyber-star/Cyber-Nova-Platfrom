@@ -29,7 +29,16 @@ const modes: Array<{ id: NovaMode; label: string; labelBn: string; color: string
 ];
 
 export const NovaAssistant: React.FC = () => {
-  const { isBn, user, curriculum, read, answers, lastVisited } = useStore();
+  const { isBn, user, curriculum, read, answers, lastVisited, admin } = useStore();
+  if (!admin.novaEnabled) {
+    return (
+      <div className="glass rounded-3xl p-8 text-center">
+        <Bot size={28} className="mx-auto mb-4 text-slate-500" />
+        <h2 className="text-xl font-black text-slate-200">{isBn ? "নোভা স্টাডি অ্যাসিস্ট্যান্ট অক্ষম" : "Nova Study Assistant is disabled"}</h2>
+        <p className="mt-2 text-sm text-slate-400">{isBn ? "এডমিন এই টুলটি.hide/disable করেছেন।" : "This tool has been hidden or disabled by the admin."}</p>
+      </div>
+    );
+  }
   const L = (en: string, bn: string) => (isBn ? bn : en);
   const [language, setLanguage] = useState<NovaLanguage>("auto");
   const [mode, setMode] = useState<NovaMode>("standard");
