@@ -30,13 +30,13 @@ export const NovaHelp: React.FC = () => {
 
   /**
    * VERIFIED ACCOUNT GATE
-   * Only learners signed in with a real Firebase account (Email/Password or
-   * Google) can open a support ticket. One-click Guest Demo sessions are
-   * local-only, so they have no Firebase auth user and are blocked here.
+   * This app uses a custom app session for normal learners, not always a
+   * Firebase auth.currentUser. A real signed-in user should be allowed to open
+   * a support ticket as long as they are not the demo guest account.
    */
   const isDemoAccount = (user?.email || "").toLowerCase() === "demo@cybernova.com";
-  const isFirebaseVerified = !!auth?.currentUser && !isDemoAccount;
-  const canSendMessage = isFirebaseVerified;
+  const hasRealSignedInUser = !!user?.email && !isDemoAccount;
+  const canSendMessage = hasRealSignedInUser;
 
   // The student's own thread (auto-attached from active session)
   const myThread: SupportTicket | undefined = useMemo(
@@ -52,7 +52,7 @@ export const NovaHelp: React.FC = () => {
   const send = () => {
     if (!text.trim() || !user) return;
     // Hard gate — demo/guest sessions cannot open tickets.
-    if (!canSendMessage) {
+    if (!canSendMessage || !user?.email) {
       toast(
         L(
           "Guest Demo cannot send messages. Please sign in with your real email.",

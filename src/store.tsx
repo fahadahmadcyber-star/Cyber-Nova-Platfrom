@@ -604,22 +604,94 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [state.curriculum]);
 
-  // Real-time Firestore Sync for Support Tickets across ALL devices
+  // Real-time Firestore Sync for Support Tickets across ALL devices.
+  // Prefer the canonical "support_tickets" collection while still reading the
+  // older "support_messages" collection to avoid silent data loss from older
+  // clients or browser sessions.
   useEffect(() => {
-    const ticketsRef = collection(db, "support_tickets");
-    const q = query(ticketsRef, orderBy("updatedAt", "desc"), limit(100));
+    const mergeTickets = (base: SupportTicket[], incoming: SupportTicket[]) => {
+      const merged = new Map<string, SupportTicket>();
+      [...base, ...incoming].forEach((tk) => {
+        const key = tk.id || `${tk.studentEmail}-${tk.createdAt}`;
+        const current = merged.get(key);
+        if (!current) {
+          merged.set(key, tk);
+          return;
+        }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ticketsList: SupportTicket[] = [];
-      snapshot.forEach((doc) => {
-        ticketsList.push(doc.data() as SupportTicket);
+        merged.set(key, {
+          ...current,
+          ...tk,
+          messages: [...current.messages, ...tk.messages.filter((m) => !current.messages.some((x) => x.id === m.id))],
+          updatedAt: Math.max(current.updatedAt, tk.updatedAt),
+        });
       });
-      setState((prev) => ({ ...prev, tickets: ticketsList }));
+
+      return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+    };
+
+    const normalizeLegacyTicket = (legacyDoc: any): SupportTicket | null => {
+      const row = legacyDoc?.data?.() ?? legacyDoc;
+      if (!row || (!row.fromEmail && !row.studentEmail)) return null;
+
+      const createdAt = row.createdAt?.toDate ? row.createdAt.toDate().getTime() : Number(row.createdAt || Date.now());
+      const repliedAt = row.repliedAt?.toDate ? row.repliedAt.toDate().getTime() : Number(row.repliedAt || createdAt);
+      const messageText = typeof row.message === "string" ? row.message : "";
+      const replyText = typeof row.reply === "string" ? row.reply : "";
+
+      return {
+        id: row.id || legacyDoc?.id || `${row.fromEmail || row.studentEmail}-${createdAt}`,
+        studentName: row.fromName || row.studentName || "Student",
+        studentEmail: row.fromEmail || row.studentEmail || "unknown@cybernova",
+        createdAt,
+        updatedAt: repliedAt || createdAt,
+        status: row.status === "answered" ? "answered" : "open",
+        messages: [
+          ...(messageText ? [{ id: `${legacyDoc?.id || row.id || "legacy"}-student`, from: "student" as const, text: messageText, ts: createdAt }] : []),
+          ...(replyText ? [{ id: `${legacyDoc?.id || row.id || "legacy"}-team`, from: "team" as const, text: replyText, ts: repliedAt || createdAt }] : []),
+        ],
+      };
+    };
+
+    const ticketsRef = collection(db, "support_tickets");
+    const ticketsQ = query(ticketsRef, orderBy("updatedAt", "desc"), limit(100));
+    const legacyTicketsRef = collection(db, "support_messages");
+    const legacyTicketsQ = query(legacyTicketsRef, orderBy("createdAt", "desc"), limit(100));
+
+    const unsubTickets = onSnapshot(ticketsQ, (snapshot) => {
+      const ticketsList: SupportTicket[] = [];
+      snapshot.forEach((docSnap) => {
+        const row = docSnap.data() as SupportTicket;
+        if (row && row.studentEmail) ticketsList.push(row as SupportTicket);
+      });
+
+      setState((prev) => ({
+        ...prev,
+        tickets: mergeTickets(prev.tickets, ticketsList),
+      }));
     }, (error) => {
       console.error("[cybernova] Firestore real-time sync failed:", error);
     });
 
-    return () => unsubscribe();
+    const unsubLegacy = onSnapshot(legacyTicketsQ, (snapshot) => {
+      const legacyTickets: SupportTicket[] = [];
+      snapshot.forEach((legacyDoc) => {
+        const normalized = normalizeLegacyTicket(legacyDoc);
+        if (normalized) legacyTickets.push(normalized);
+      });
+
+      setState((prev) => ({
+        ...prev,
+        tickets: mergeTickets(prev.tickets, legacyTickets),
+      }));
+    }, (error) => {
+      console.error("[cybernova] Firestore legacy support sync failed:", error);
+    });
+
+    return () => {
+      unsubTickets();
+      unsubLegacy();
+    };
   }, []);
 
   const toast = useCallback((msg: string, kind: Toast["kind"] = "info") => {
@@ -1216,11 +1288,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             messages: [msg],
           };
 
-      // Write straight to Google Firestore cloud database!
-      // This will immediately trigger onSnapshot on all other devices (your laptop, etc.)
+      // Write to both collections so the legacy admin inbox and the new support
+      // flow remain in sync even if one collection is used by a previous build.
       const docRef = doc(db, "support_tickets", ticketId);
       setDoc(docRef, updatedTicket).catch((err) => {
         console.error("[cybernova] Failed to save ticket to Firestore:", err);
+      });
+
+      const legacyRef = doc(db, "support_messages", ticketId);
+      setDoc(legacyRef, {
+        id: ticketId,
+        fromEmail: state.user.email,
+        fromName: state.user.name,
+        subject: "Nova Help Message",
+        message: trimmed,
+        status: "open",
+        createdAt: new Date(),
+        repliedAt: null,
+        reply: "",
+      }).catch((err) => {
+        console.error("[cybernova] Failed to save legacy support message:", err);
       });
     },
     replyTicket: (ticketId, text) => {
@@ -1245,10 +1332,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ],
       };
 
-      // Write straight to Google Firestore cloud database!
       const docRef = doc(db, "support_tickets", ticketId);
       setDoc(docRef, updatedTicket).catch((err) => {
         console.error("[cybernova] Failed to save reply to Firestore:", err);
+      });
+
+      const legacyRef = doc(db, "support_messages", ticketId);
+      setDoc(legacyRef, {
+        id: ticketId,
+        fromEmail: existing.studentEmail,
+        fromName: existing.studentName,
+        subject: "Nova Help Message",
+        message: existing.messages[0]?.text || "",
+        status: "answered",
+        createdAt: new Date(existing.createdAt),
+        repliedAt: new Date(),
+        reply: trimmed,
+      }, { merge: true }).catch((err) => {
+        console.error("[cybernova] Failed to save legacy support reply:", err);
       });
     },
     dismissAchievement: () => {
