@@ -339,14 +339,39 @@ function buildDefaultExam(title: string): NonNullable<Chapter["exam"]> {
 }
 
 function normalizeCurriculum(courses: Course[]): Course[] {
-  return courses.map((course) => ({
-    ...course,
-        chapters: course.chapters.map((chapter, index) => ({
-          ...chapter,
-          exam: chapter.exam ?? (index === 0 ? course.finalExam : undefined),
-        })),
-        finalExam: undefined,
-  }));
+  return courses.map((course) => {
+    const cleanCourse: Record<string, unknown> = { ...course };
+    delete cleanCourse.finalExam;
+
+    const chapters = course.chapters.map((chapter, index) => {
+      const cleanChapter: Record<string, unknown> = { ...chapter };
+      const exam = chapter.exam ?? (index === 0 ? course.finalExam : undefined);
+      if (exam !== undefined) cleanChapter.exam = exam;
+      else delete cleanChapter.exam;
+      return cleanChapter as Chapter;
+    });
+
+    cleanCourse.chapters = chapters;
+    return cleanCourse as Course;
+  });
+}
+
+function sanitizeForFirestore<T>(value: T): T {
+  if (value === undefined) return undefined as T;
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeForFirestore(item))
+      .filter((item) => item !== undefined) as T;
+  }
+  if (value && typeof value === "object") {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      const cleanedItem = sanitizeForFirestore(item as never);
+      if (cleanedItem !== undefined) cleaned[key] = cleanedItem;
+    }
+    return cleaned as T;
+  }
+  return value;
 }
 
 function orderCurriculum(courses: Course[]): Course[] {
@@ -563,7 +588,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   useEffect(() => {
-    const payload = { items: state.curriculum, updatedAt: Date.now() };
+    const payload = { items: sanitizeForFirestore(state.curriculum), updatedAt: Date.now() };
     setDoc(doc(db, "platform", "curriculum"), payload, { merge: true }).catch(() => {
       /* ignore remote sync failures */
     });

@@ -1,46 +1,73 @@
-import React from "react";
+import React, { useId } from "react";
 
-/* Geometric "Nova" mark: a hexagonal core with circuit traces and an orbiting ring. */
 import { useStore } from "../store";
 
 export const LogoMark: React.FC<{ size?: number }> = ({ size = 40 }) => {
   const { admin } = useStore();
+  const gradientId = useId().replace(/:/g, "");
+
   if (admin.logoUrl) {
-    return <img src={admin.logoUrl} alt={admin.siteNameEn || "Cyber Nova"} width={size} height={size} className="rounded-full object-cover border border-white/10 bg-slate-950" style={{ width: size, height: size }} />;
+    return (
+      <div
+        className="relative flex items-center justify-center overflow-hidden border border-cyan-400/30 bg-slate-950/80 shadow-[0_0_35px_rgba(34,211,238,0.18)]"
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 16,
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16), 0 0 28px rgba(34,211,238,0.18)",
+        }}
+      >
+        <img
+          src={admin.logoUrl}
+          alt={admin.siteNameEn || "Cyber Nova"}
+          width={size}
+          height={size}
+          className="relative h-full w-full object-cover object-center"
+          style={{ borderRadius: 16, filter: "drop-shadow(0 0 14px rgba(34,211,238,0.24)) saturate(1.05)" }}
+        />
+      </div>
+    );
   }
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ filter: "drop-shadow(0 0 8px rgba(34,211,238,.45))" }}
+    <div
+      className="relative flex items-center justify-center overflow-hidden border border-cyan-400/30 bg-slate-950/80"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 18,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 28px rgba(45,212,191,0.16)",
+      }}
+      aria-label="Cyber Nova"
     >
-      <defs>
-        <linearGradient id="lg-core" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#67e8f9" />
-          <stop offset="0.55" stopColor="#22d3ee" />
-          <stop offset="1" stopColor="#34d399" />
-        </linearGradient>
-      </defs>
-      <ellipse cx="32" cy="32" rx="28" ry="10.5" stroke="#22d3ee" strokeOpacity="0.35" strokeWidth="1.4" transform="rotate(38 32 32)" strokeDasharray="4 3" />
-      <path
-        d="M32 4 L55 16 V40 L32 60 L9 40 V16 Z"
-        fill="rgba(8,15,32,0.85)"
-        stroke="url(#lg-core)"
-        strokeWidth="2.2"
-        strokeLinejoin="round"
-      />
-      <path d="M32 12 L42 17 L42 30" stroke="#22d3ee" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-      <path d="M32 12 L22 17 L22 34 L28 40" stroke="#34d399" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-      <circle cx="42" cy="30" r="2.4" fill="#22d3ee" />
-      <circle cx="22" cy="34" r="2.4" fill="#34d399" />
-      <circle cx="32" cy="32" r="6.5" fill="url(#lg-core)" opacity="0.9" />
-      <circle cx="32" cy="32" r="2.6" fill="#04141f" />
-      <circle cx="32" cy="32" r="1.1" fill="#a7f3d0" />
-    </svg>
+      <svg viewBox="0 0 120 120" width={size} height={size} className="relative h-full w-full">
+        <defs>
+          <linearGradient id={`bg-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0b1222" />
+            <stop offset="45%" stopColor="#111827" />
+            <stop offset="100%" stopColor="#030712" />
+          </linearGradient>
+          <linearGradient id={`ring-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#67e8f9" />
+            <stop offset="50%" stopColor="#22d3ee" />
+            <stop offset="100%" stopColor="#34d399" />
+          </linearGradient>
+          <linearGradient id={`mark-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#d9f99d" />
+            <stop offset="40%" stopColor="#67e8f9" />
+            <stop offset="100%" stopColor="#a78bfa" />
+          </linearGradient>
+        </defs>
+
+        <rect x="4" y="4" width="112" height="112" rx="26" fill={`url(#bg-${gradientId})`} stroke="rgba(103,232,249,0.38)" />
+        <circle cx="60" cy="60" r="41" fill="none" stroke={`url(#ring-${gradientId})`} strokeWidth="2.4" opacity="0.7" />
+        <circle cx="60" cy="60" r="30" fill="none" stroke="rgba(103,232,249,0.38)" strokeWidth="1.3" strokeDasharray="4 7" />
+        <path d="M28 80V42L52 70L60 60L68 70L92 42V80" fill="none" stroke={`url(#mark-${gradientId})`} strokeWidth="6.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M46 34L60 50L74 34" fill="none" stroke={`url(#mark-${gradientId})`} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+        <circle cx="60" cy="60" r="4.5" fill="#ecfeff" />
+        <path d="M60 18V10M102 60H110M60 102V110M18 60H10" stroke="rgba(103,232,249,0.72)" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    </div>
   );
 };
 
