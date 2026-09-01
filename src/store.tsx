@@ -604,16 +604,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [state.curriculum]);
 
-  // Real-time Firestore Sync for Support Tickets across ALL devices.
-  // Prefer the canonical "support_tickets" collection while still reading the
-  // older "support_messages" collection to avoid silent data loss from older
-  // clients or browser sessions.
+  // Real-time Firestore sync for support tickets.
+  // Keep both the new canonical "support_tickets" collection and the older
+  // "support_messages" collection readable, but avoid nested listeners so the
+  // student/admin sync stays reliable and deterministic.
   useEffect(() => {
     const mergeTickets = (base: SupportTicket[], incoming: SupportTicket[]) => {
       const merged = new Map<string, SupportTicket>();
+
       [...base, ...incoming].forEach((tk) => {
         const key = tk.id || `${tk.studentEmail}-${tk.createdAt}`;
         const current = merged.get(key);
+
         if (!current) {
           merged.set(key, tk);
           return;
@@ -622,7 +624,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         merged.set(key, {
           ...current,
           ...tk,
-          messages: [...current.messages, ...tk.messages.filter((m) => !current.messages.some((x) => x.id === m.id))],
+          messages: [
+            ...current.messages,
+            ...tk.messages.filter((msg) => !current.messages.some((x) => x.id === msg.id)),
+          ],
           updatedAt: Math.max(current.updatedAt, tk.updatedAt),
         });
       });
@@ -658,19 +663,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const legacyTicketsRef = collection(db, "support_messages");
     const legacyTicketsQ = query(legacyTicketsRef, orderBy("createdAt", "desc"), limit(100));
 
+    const applyIncomingTickets = (incoming: SupportTicket[]) => {
+      setState((prev) => ({
+        ...prev,
+        tickets: mergeTickets(prev.tickets, incoming),
+      }));
+    };
+
     const unsubTickets = onSnapshot(ticketsQ, (snapshot) => {
       const ticketsList: SupportTicket[] = [];
       snapshot.forEach((docSnap) => {
         const row = docSnap.data() as SupportTicket;
         if (row && row.studentEmail) ticketsList.push(row as SupportTicket);
       });
-
-      setState((prev) => ({
-        ...prev,
-        tickets: mergeTickets(prev.tickets, ticketsList),
-      }));
+      applyIncomingTickets(ticketsList);
     }, (error) => {
-      console.error("[cybernova] Firestore real-time sync failed:", error);
+      console.error("[cybernova] Firestore support_tickets sync failed:", error);
     });
 
     const unsubLegacy = onSnapshot(legacyTicketsQ, (snapshot) => {
@@ -679,13 +687,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const normalized = normalizeLegacyTicket(legacyDoc);
         if (normalized) legacyTickets.push(normalized);
       });
-
-      setState((prev) => ({
-        ...prev,
-        tickets: mergeTickets(prev.tickets, legacyTickets),
-      }));
+      applyIncomingTickets(legacyTickets);
     }, (error) => {
-      console.error("[cybernova] Firestore legacy support sync failed:", error);
+      console.error("[cybernova] Firestore support_messages sync failed:", error);
     });
 
     return () => {
