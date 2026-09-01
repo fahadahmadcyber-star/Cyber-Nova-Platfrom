@@ -24,6 +24,7 @@ const firebaseConfig = {
 };
 
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 // Guard against double-initialization during hot reloads
 const app: FirebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
@@ -33,6 +34,9 @@ export const auth: Auth = getAuth(app);
 
 /** Firestore instance for real-time data sync across all devices. */
 export const db: Firestore = getFirestore(app);
+
+/** Firebase Storage for image/file attachments in community chat. */
+export const storage: FirebaseStorage = getStorage(app);
 
 /** Official Firebase Google provider used by the login page popup. */
 export const googleProvider = new GoogleAuthProvider();

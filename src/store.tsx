@@ -85,6 +85,9 @@ export interface User {
   bio?: string;
   education?: string;
   location?: string;
+  enrolledCourses?: string[];
+  online?: boolean;
+  lastSeen?: number;
 }
 
 /**
@@ -174,6 +177,8 @@ export interface Certificate {
   courseId: string;
   courseTitle: string;
   courseTitleBn: string;
+  examTitle?: string;
+  examTitleBn?: string;
   earnedAt: number;
   name: string;
   location: string;
@@ -247,6 +252,8 @@ export interface AdminContent {
   missionCount: number;
   trackCount: number;
   badgeCount: number;
+  certificatesEnabled: boolean;
+  communityEnabled: boolean;
   novaEnabled: boolean;
   novaGuidance: string;
   novaResponseLength: "concise" | "balanced" | "detailed";
@@ -254,9 +261,10 @@ export interface AdminContent {
   novaModes: Record<string, boolean>;
 }
 export type Route = {
-  view: "landing" | "login" | "home" | "academy" | "course" | "chapter" | "quiz" | "nova" | "profile" | "admin" | "help" | "finalExam";
+  view: "landing" | "login" | "home" | "academy" | "course" | "chapter" | "quiz" | "nova" | "profile" | "admin" | "help" | "finalExam" | "community" | "verify";
   courseId?: string;
   chapterId?: string;
+  verifyId?: string;
 };
 interface Toast {
   id: number;
@@ -289,6 +297,8 @@ const DEFAULT_ADMIN: AdminContent = {
   missionCount: 28,
   trackCount: 4,
   badgeCount: 7,
+  certificatesEnabled: true,
+  communityEnabled: true,
   novaEnabled: true,
   novaGuidance: "",
   novaResponseLength: "balanced",
@@ -844,6 +854,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           courseId,
           courseTitle: course.title,
           courseTitleBn: course.titleBn,
+          examTitle: `${course.title} Certificate`,
+          examTitleBn: `${course.titleBn} সার্টিফিকেট`,
           earnedAt: Date.now(),
           name: s.user?.name || "Student",
           location: s.user?.location || "",
@@ -1142,6 +1154,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             courseId,
             courseTitle: course?.title || "",
             courseTitleBn: course?.titleBn || "",
+            examTitle: chapter?.exam?.title || `${course?.title || "Course"} Certificate`,
+            examTitleBn: chapter?.exam?.titleBn || `${course?.titleBn || "কোর্স"} সার্টিফিকেট`,
             earnedAt: Date.now(),
             name: s.user?.name || "Student",
             location: s.user?.location || "",

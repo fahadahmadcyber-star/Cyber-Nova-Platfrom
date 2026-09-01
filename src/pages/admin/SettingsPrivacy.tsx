@@ -325,6 +325,24 @@ export const SettingsPrivacy: React.FC = () => {
         >
           <div className="space-y-2.5">
             <Toggle
+              label={L("Certificate system", "সার্টিফিকেট সিস্টেম")}
+              desc={L("Turn the certificate flow on or off for students.", "শিক্ষার্থীদের জন্য সার্টিফিকেট ফ্লো চালু বা বন্ধ করো।")}
+              on={admin.certificatesEnabled}
+              onChange={() => setAdmin({ certificatesEnabled: !admin.certificatesEnabled })}
+            />
+            <Toggle
+              label={L("Community system", "কমিউনিটি সিস্টেম")}
+              desc={L("Show or hide the Community page from the sidebar.", "সাইডবার থেকে কমিউনিটি পেজ দেখাও বা লুকাও।")}
+              on={admin.communityEnabled}
+              onChange={() => setAdmin({ communityEnabled: !admin.communityEnabled })}
+            />
+            <Toggle
+              label={L("Nova AI system", "নোভা AI সিস্টেম")}
+              desc={L("Enable or disable the Nova assistant for students.", "শিক্ষার্থীদের জন্য Nova assistant চালু বা বন্ধ করো।")}
+              on={admin.novaEnabled}
+              onChange={() => setAdmin({ novaEnabled: !admin.novaEnabled })}
+            />
+            <Toggle
               label={L("Allow new signups", "নতুন সাইনআপ অনুমতি")}
               desc={L("Let new learners create accounts.", "নতুন শিক্ষার্থীরা অ্যাকাউন্ট খুলতে পারবে।")}
               on={allowSignups}

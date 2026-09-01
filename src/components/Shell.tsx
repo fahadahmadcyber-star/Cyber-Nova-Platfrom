@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import {
   GraduationCap, Swords, UserCircle2, Search, Menu, X, ShieldHalf, LifeBuoy, LayoutDashboard,
   Home as HomeIcon, Cpu, Network, Globe, SearchCheck, LogOut, Languages, ChevronRight, BookOpen,
-  Radar, Bell, Bot,
+  Radar, Bell, Bot, Users,
 } from "lucide-react";
 import { useStore, Route } from "../store";
 import { levelFor } from "../data/courses";
@@ -141,6 +141,9 @@ const SideContent: React.FC<{ onNav: () => void }> = ({ onNav }) => {
       ? [{ key: "nova", label: isBn ? "নোভা স্টাডি অ্যাসিস্ট্যান্ট" : "Nova Study Assistant", icon: Bot, view: "nova" as const }]
       : []),
     { key: "help", label: isBn ? "নোভা হেল্প" : "Nova Help", icon: LifeBuoy, view: "help" as const },
+    ...(admin.communityEnabled
+      ? [{ key: "community", label: isBn ? "কমিউনিটি" : "Community", icon: Users, view: "community" as const }]
+      : []),
     { key: "profile", label: t("navProfile"), icon: UserCircle2, view: "profile" as const },
     ...(user?.role === "admin"
       ? [{ key: "admin", label: t("navAdmin"), icon: ShieldHalf, view: "admin" as const }]

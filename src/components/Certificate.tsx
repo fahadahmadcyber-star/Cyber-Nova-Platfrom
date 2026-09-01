@@ -2,9 +2,10 @@ import React, { useRef, useState } from "react";
 // "pro" fork — the original html2canvas cannot parse Tailwind v4's modern
 // oklch()/oklab() color functions and throws during export. This fork can.
 import html2canvas from "html2canvas-pro";
+import jsPDF from "jspdf";
 import { LogoMark } from "./Logo";
 import { useStore, Certificate as CertType } from "../store";
-import { Download, QrCode, Award, Loader2 } from "lucide-react";
+import { Download, QrCode, Award, Loader2, FileImage, FileText } from "lucide-react";
 
 /**
  * PROFESSIONAL CERTIFICATE
@@ -40,7 +41,7 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
   const [generating, setGenerating] = useState(false);
 
   const siteUrl = resolveSiteUrl();
-  const verifyUrl = `${siteUrl}?verify=${cert.id}`;
+  const verifyUrl = `${siteUrl}/?verify=${encodeURIComponent(cert.id)}`;
   const qrSrc = QR_API(verifyUrl, 260);
 
   const date = new Date(cert.earnedAt).toLocaleDateString(isBn ? "bn-BD" : "en-US", {
@@ -53,76 +54,99 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
   const displayName = user?.name || cert.name || "Learner";
   const courseTitle = isBn ? cert.courseTitleBn || cert.courseTitle : cert.courseTitle;
 
-  /* ── Direct image download ─────────────────────────────────────────────
-     No PDF, no browser tab, no preview — the certificate is rasterised and
-     saved straight to the device's Downloads folder as a crisp PNG.
-     PNG via the download attribute is the most reliable cross-device
-     trigger (works on Android, iOS, Windows, macOS browsers).           */
-  const download = async () => {
+  const captureCard = async () => {
+    const node = sheetRef.current;
+    if (!node) throw new Error("certificate node missing");
+
+    await Promise.all([
+      (document as any).fonts?.ready ?? Promise.resolve(),
+      ...Array.from(node.querySelectorAll("img")).map(
+        (img) =>
+          img.complete && img.naturalWidth > 0
+            ? Promise.resolve()
+            : new Promise<void>((resolve) => {
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+              })
+      ),
+    ]);
+
+    return html2canvas(node, {
+      backgroundColor: "#070b18",
+      scale: 2.5,
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      imageTimeout: 8000,
+    });
+  };
+
+  const triggerDownload = (href: string, filename: string) => {
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = filename;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const downloadPNG = async () => {
     const node = sheetRef.current;
     if (!node || generating) return;
     setGenerating(true);
 
-    // Prepare the anchor BEFORE any async work so the click stays inside
-    // the user's tap gesture (some mobile browsers block delayed clicks).
-    const a = document.createElement("a");
-    a.download = `CyberNova_Certificate_${cert.id}.png`;
-    a.rel = "noopener";
-
     try {
-      // Make sure web fonts AND the remote QR image are fully decoded
-      // before rasterising, otherwise the file comes out with blank pieces.
-      await Promise.all([
-        (document as any).fonts?.ready ?? Promise.resolve(),
-        ...Array.from(node.querySelectorAll("img")).map(
-          (img) =>
-            img.complete && img.naturalWidth > 0
-              ? Promise.resolve()
-              : new Promise<void>((resolve) => {
-                  img.onload = () => resolve();
-                  img.onerror = () => resolve(); // never block the export
-                })
-        ),
-      ]);
-
-      const canvas = await html2canvas(node, {
-        backgroundColor: "#070b18",
-        scale: 2.5,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        imageTimeout: 8000,
-      });
-
-      // Prefer Blob (smaller, faster); fall back to data-URL if unavailable.
-      const trigger = (href: string) => {
-        a.href = href;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      };
-
+      const canvas = await captureCard();
       if (typeof canvas.toBlob === "function") {
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const url = URL.createObjectURL(blob);
-              trigger(url);
-              window.setTimeout(() => URL.revokeObjectURL(url), 4000);
-            } else {
-              trigger(canvas.toDataURL("image/png"));
-            }
-          },
-          "image/png"
-        );
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            triggerDownload(canvas.toDataURL("image/png"), `CyberNova_Certificate_${cert.id}.png`);
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          triggerDownload(url, `CyberNova_Certificate_${cert.id}.png`);
+          window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+        }, "image/png");
       } else {
-        trigger(canvas.toDataURL("image/png"));
+        triggerDownload(canvas.toDataURL("image/png"), `CyberNova_Certificate_${cert.id}.png`);
       }
 
       toast(L("Certificate saved to your device", "সার্টিফিকেট ডিভাইসে সেভ হয়েছে"), "xp");
     } catch (err) {
-      console.error("[cybernova] certificate export failed:", err);
+      console.error("[cybernova] png export failed:", err);
       toast(L("Download failed — try again", "ডাউনলোড ব্যর্থ — আবার চেষ্টা করো"), "warn");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const downloadPDF = async () => {
+    const node = sheetRef.current;
+    if (!node || generating) return;
+    setGenerating(true);
+
+    try {
+      const canvas = await captureCard();
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 24;
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      const usableHeight = pageHeight - margin * 2;
+      const finalHeight = Math.min(imgHeight, usableHeight);
+      const finalWidth = (canvas.width * finalHeight) / canvas.height;
+
+      pdf.addImage(imgData, "PNG", (pageWidth - finalWidth) / 2, margin, finalWidth, finalHeight);
+      pdf.save(`CyberNova_Certificate_${cert.id}.pdf`);
+
+      toast(L("PDF downloaded", "পিডিএফ ডাউনলোড হয়েছে"), "xp");
+    } catch (err) {
+      console.error("[cybernova] pdf export failed:", err);
+      toast(L("PDF export failed — try again", "পিডিএফ এক্সপোর্ট ব্যর্থ — আবার চেষ্টা করো"), "warn");
     } finally {
       setGenerating(false);
     }
@@ -136,14 +160,15 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
       {/* ── Certificate card (captured by html2canvas) ── */}
       <div
         ref={sheetRef}
-        className="relative overflow-hidden rounded-2xl border border-yellow-500/30
-                   bg-gradient-to-br from-slate-900 via-[#0a1428] to-slate-950
-                   shadow-[0_12px_40px_-12px_rgba(250,204,21,.3)]
+        className="relative overflow-hidden rounded-[26px] border border-yellow-500/35
+                   bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),_transparent_34%),linear-gradient(135deg,#020817,#0b1325_45%,#101827)]
+                   shadow-[0_30px_70px_-25px_rgba(250,204,21,0.35)]
                    w-full max-w-sm mx-auto"
       >
         {/* decorative inner frames */}
-        <div className="absolute inset-2 rounded-xl border border-yellow-500/35 pointer-events-none" />
-        <div className="absolute inset-[10px] rounded-[10px] border border-yellow-500/15 pointer-events-none" />
+        <div className="absolute inset-2 rounded-[20px] border border-yellow-500/35 pointer-events-none" />
+        <div className="absolute inset-[12px] rounded-[18px] border border-yellow-500/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(250,204,21,0.06)_50%,transparent_100%)] pointer-events-none" />
 
         {/* corner ornaments — scaled for compact card */}
         {[
@@ -173,34 +198,35 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
 
           {/* Brand header */}
           <div className="flex flex-col items-center text-center">
-            <LogoMark size={36} />
-            <div className="mt-1.5 text-[10px] font-black tracking-[0.35em] text-yellow-300">CYBER NOVA</div>
-            <div className="text-[7px] tracking-[0.4em] text-cyan-200/50">SECURITY ACADEMY</div>
+            <div className="rounded-full border border-yellow-500/40 bg-yellow-400/8 p-2 shadow-[0_0_30px_rgba(250,204,21,0.18)]">
+              <LogoMark size={36} />
+            </div>
+            <div className="mt-2 text-[10px] font-black tracking-[0.35em] text-yellow-300">CYBER NOVA</div>
+            <div className="text-[7px] tracking-[0.45em] text-cyan-200/60">SECURITY ACADEMY</div>
             <div
-              className="mt-2.5 font-black text-[17px] leading-tight text-yellow-200"
+              className="mt-3 font-black text-[17px] leading-tight text-yellow-200"
               style={{ fontFamily: "Segoe Script, Brush Script MT, cursive" }}
             >
               Certificate of Completion
             </div>
-            <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-yellow-500/50 bg-yellow-400/10 px-3 py-0.5 text-[7px] font-bold uppercase tracking-[0.25em] text-yellow-200">
+            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-yellow-500/50 bg-yellow-400/10 px-3 py-1 text-[7px] font-bold uppercase tracking-[0.25em] text-yellow-200">
               <Award size={9} /> {L("Official Credential", "অফিসিয়াল সনদপত্র")}
             </span>
           </div>
 
           {/* Recipient */}
-          <div className="mt-3.5 text-center">
+          <div className="mt-4 text-center">
             <div className="text-[8px] tracking-[0.25em] text-slate-400 uppercase">
               {L("Proudly Presented To", "গর্বের সাথে প্রদান করা হলো")}
             </div>
-            <div className="mt-1 inline-block px-4 pb-0.5 text-xl font-black text-white border-b border-yellow-500/60 leading-tight">
+            <div className="mt-2 inline-flex max-w-[200px] items-center justify-center rounded-full border border-yellow-500/30 bg-white/3 px-4 py-1.5 text-xl font-black text-white leading-tight shadow-[0_0_20px_rgba(250,204,21,0.08)]">
               {displayName}
             </div>
             <p className="mx-auto mt-2 text-[10px] leading-relaxed text-slate-300/80 max-w-[220px]">
-              {L("for completing all missions in", "সম্পূর্ণ মিশন শেষ করার জন্য —")}{" "}
-              <span className="font-bold text-amber-300">{courseTitle}</span>
+              {L("for successfully completing the program and demonstrating mastery in", "প্রোগ্রাম সফলভাবে শেষ করার এবং দক্ষতা প্রদর্শনের জন্য —")} <span className="font-bold text-amber-300">{courseTitle}</span>
             </p>
             {(cert.location || cert.education) && (
-              <div className="mt-1 text-[8px] text-slate-500">
+              <div className="mt-1.5 text-[8px] text-slate-500">
                 {[cert.location, cert.education].filter(Boolean).join(" · ")}
               </div>
             )}
@@ -222,7 +248,7 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
 
             {/* Seal */}
             <div className="flex flex-col items-center flex-1">
-              <div className="relative w-14 h-14 rounded-full border-2 border-yellow-500/65 grid place-items-center shadow-[0_0_20px_rgba(250,204,21,.2)]">
+              <div className="relative w-14 h-14 rounded-full border-2 border-yellow-500/70 grid place-items-center shadow-[0_0_22px_rgba(250,204,21,.2)] bg-[radial-gradient(circle,_rgba(250,204,21,0.12),_transparent_65%)]">
                 <div className="text-center">
                   <div className="text-[5px] tracking-[0.25em] text-yellow-300">OFFICIAL</div>
                   <div className="text-[15px] font-black text-yellow-200 leading-none">NR</div>
@@ -237,17 +263,17 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
 
             {/* QR */}
             <div className="flex flex-col items-center flex-1">
-              <div className="rounded-lg border border-yellow-500/45 bg-[#0b1226] p-1 shadow-[0_0_14px_rgba(250,204,21,.12)]">
+              <div className="rounded-[10px] border border-yellow-500/45 bg-[#0b1226] p-1.5 shadow-[0_0_18px_rgba(250,204,21,.14)]">
                 <img
                   src={qrSrc}
                   alt="verification qr"
-                  className="w-[52px] h-[52px] rounded"
+                  className="w-[52px] h-[52px] rounded-[6px]"
                   loading="lazy"
                   crossOrigin="anonymous"
                 />
               </div>
-              <div className="mt-1 flex items-center gap-0.5 text-[6px] uppercase tracking-[0.2em] text-yellow-200/80">
-                <QrCode size={8} /> {L("Scan", "স্ক্যান")}
+              <div className="mt-1.5 flex items-center gap-0.5 text-[6px] uppercase tracking-[0.22em] text-yellow-200/80">
+                <QrCode size={8} /> {L("Verify Authenticity", "সত্যতা যাচাই করুন")}
               </div>
             </div>
           </div>
@@ -255,18 +281,29 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
         </div>{/* /card content */}
       </div>{/* /sheetRef */}
 
-      {/* Download button — outside the card so it never appears in the saved image */}
-      <button
-        onClick={download}
-        disabled={generating}
-        className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black
-                   text-slate-950 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500
-                   hover:shadow-[0_0_28px_rgba(250,204,21,.45)] active:scale-[0.97]
-                   transition-all cursor-pointer disabled:opacity-60 disabled:cursor-wait"
-      >
-        {generating ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-        {generating ? L("Preparing…", "তৈরি হচ্ছে…") : L("Download Certificate", "সার্টিফিকেট ডাউনলোড")}
-      </button>
+      <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row">
+        <button
+          onClick={downloadPNG}
+          disabled={generating}
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[11px] font-black
+                     text-slate-950 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500
+                     hover:shadow-[0_0_28px_rgba(250,204,21,.45)] active:scale-[0.97]
+                     transition-all cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+        >
+          {generating ? <Loader2 size={14} className="animate-spin" /> : <FileImage size={14} />}
+          {generating ? L("Preparing…", "তৈরি হচ্ছে…") : L("Download PNG", "PNG ডাউনলোড")}
+        </button>
+
+        <button
+          onClick={downloadPDF}
+          disabled={generating}
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-cyan-400/40 bg-cyan-500/10 px-4 py-2.5 text-[11px] font-black text-cyan-100
+                     hover:bg-cyan-500/15 active:scale-[0.97] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+        >
+          {generating ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+          {L("Download PDF", "PDF ডাউনলোড")}
+        </button>
+      </div>
 
     </div>
   );

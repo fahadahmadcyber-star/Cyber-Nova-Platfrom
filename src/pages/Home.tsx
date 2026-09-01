@@ -85,7 +85,9 @@ export const Home: React.FC = () => {
     { icon: GraduationCap, label: L("Level", "লেভেল"), val: fmtN(lv.index, isBn), sub: tn("levelNames", lv.index), accent: "text-emerald-300", ring: "from-emerald-500/20 to-teal-500/10", border: "border-emerald-400/25" },
     { icon: BookOpenCheck, label: t("statRead"), val: fmtN(read.length, isBn), sub: `/ ${fmtN(totalMissions, isBn)}`, accent: "text-sky-300", ring: "from-sky-500/20 to-cyan-500/10", border: "border-sky-400/25" },
     { icon: Crosshair, label: t("statQuizzes"), val: fmtN(cracked, isBn), sub: `/ ${fmtN(totalMissions, isBn)}`, accent: "text-fuchsia-300", ring: "from-fuchsia-500/20 to-purple-500/10", border: "border-fuchsia-400/25" },
-    { icon: Award, label: L("Certificates", "সার্টিফিকেট"), val: fmtN(certificates.length, isBn), sub: `/ ${fmtN(courses.length, isBn)}`, accent: "text-amber-300", ring: "from-amber-500/20 to-orange-500/10", border: "border-amber-400/25" },
+    ...(admin.certificatesEnabled
+      ? [{ icon: Award, label: L("Certificates", "সার্টিফিকেট"), val: fmtN(certificates.length, isBn), sub: `/ ${fmtN(courses.length, isBn)}`, accent: "text-amber-300", ring: "from-amber-500/20 to-orange-500/10", border: "border-amber-400/25" }]
+      : []),
     { icon: Trophy, label: L("Badges", "ব্যাজ"), val: fmtN(unlockedBadges, isBn), sub: `/ ${fmtN(7, isBn)}`, accent: "text-rose-300", ring: "from-rose-500/20 to-pink-500/10", border: "border-rose-400/25" },
   ];
 

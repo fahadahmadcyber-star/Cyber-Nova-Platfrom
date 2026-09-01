@@ -17,7 +17,13 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
 
   const geminiApiKey = String(process.env.GEMINI_API_KEY || "").trim();
-  if (!geminiApiKey) return json(res, 503, { error: "Nova AI is not configured yet." });
+  if (!geminiApiKey) {
+    return json(res, 503, {
+      error: "Nova AI is not configured yet.",
+      detail: "Missing GEMINI_API_KEY in Vercel environment variables.",
+      hint: "Set GEMINI_API_KEY in Vercel -> Project -> Settings -> Environment Variables and redeploy."
+    });
+  }
 
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
@@ -44,11 +50,21 @@ export default async function handler(req, res) {
       }),
     });
     const data = await response.json();
-    if (!response.ok) return json(res, 502, { error: "Nova is temporarily unavailable." });
+    if (!response.ok) {
+      return json(res, 502, {
+        error: "Nova is temporarily unavailable.",
+        detail: data?.error?.message || "Gemini request failed.",
+        hint: "Check the Gemini API key, quota, and Vercel deployment status."
+      });
+    }
     const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
     if (!text) return json(res, 502, { error: "Nova returned an empty response." });
     return json(res, 200, { text });
-  } catch {
-    return json(res, 500, { error: "Nova is temporarily unavailable." });
+  } catch (error) {
+    return json(res, 500, {
+      error: "Nova is temporarily unavailable.",
+      detail: error instanceof Error ? error.message : "Unknown runtime error.",
+      hint: "Verify the serverless API is deployed and the Gemini key is valid."
+    });
   }
 }

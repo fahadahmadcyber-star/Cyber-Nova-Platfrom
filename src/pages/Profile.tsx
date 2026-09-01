@@ -11,7 +11,7 @@ import { Certificate } from "../components/Certificate";
 import { fmtN } from "./Home";
 
 export const Profile: React.FC = () => {
-  const { t, tn, isBn, user, xp, read, answers, arena, activity, updateProfile, resetProgress, logout, toast, nav, certificates, curriculum, courseBadges, examHistory } =
+  const { t, tn, isBn, user, xp, read, answers, arena, activity, updateProfile, resetProgress, logout, toast, nav, certificates, curriculum, courseBadges, examHistory, admin } =
     useStore();
 
   const [name, setName] = useState(user?.name || "");
@@ -235,21 +235,23 @@ export const Profile: React.FC = () => {
           </section>
 
           {/* ===== certificates ===== */}
-          <section className="glass rounded-3xl p-6">
-            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-300 flex items-center gap-2">
-              <Award size={15} /> {L("Certificates", "সার্টিফিকেট")}
-            </h2>
-            {certificates.length === 0 && (
-              <p className="mt-3 text-xs text-slate-400">
-                {L("Complete any track to earn your first professional certificate.", "যেকোনো ট্র্যাক সম্পন্ন করলে তোমার প্রথম প্রফেশনাল সার্টিফিকেট পাবে।")}
-              </p>
-            )}
-            <div className="mt-4 space-y-4">
-              {certificates.map((cert) => (
-                <Certificate key={cert.id} cert={cert} isBn={isBn} />
-              ))}
-            </div>
-          </section>
+          {admin.certificatesEnabled && (
+            <section className="glass rounded-3xl p-6">
+              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-300 flex items-center gap-2">
+                <Award size={15} /> {L("Certificates", "সার্টিফিকেট")}
+              </h2>
+              {certificates.length === 0 && (
+                <p className="mt-3 text-xs text-slate-400">
+                  {L("Complete any track to earn your first professional certificate.", "যেকোনো ট্র্যাক সম্পন্ন করলে তোমার প্রথম প্রফেশনাল সার্টিফিকেট পাবে।")}
+                </p>
+              )}
+              <div className="mt-4 space-y-4">
+                {certificates.map((cert) => (
+                  <Certificate key={cert.id} cert={cert} isBn={isBn} />
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* ===== exam reports ===== */}
           <section className="glass rounded-3xl p-6">

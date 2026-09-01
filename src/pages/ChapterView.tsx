@@ -11,7 +11,7 @@ import { EmptyState } from "../components/ui";
 import { fmtN } from "./Home";
 
 export const ChapterView: React.FC<{ courseId: string; chapterId: string }> = ({ courseId, chapterId }) => {
-  const { t, isBn, nav, read, answers, markRead, quizResult, toast, notes, addNote, editNote, deleteNote, curriculum, issueCertificate, pushNotification, finalExamResults } =
+  const { t, isBn, nav, read, answers, markRead, quizResult, toast, notes, addNote, editNote, deleteNote, curriculum, issueCertificate, pushNotification, finalExamResults, admin } =
     useStore();
   const L = (en: string, bn: string) => (isBn ? bn : en);
   const course = curriculum.find((c) => c.id === courseId);
@@ -187,7 +187,7 @@ export const ChapterView: React.FC<{ courseId: string; chapterId: string }> = ({
                     toast(t("xpReadToast"), "xp");
                     // auto-issue certificate when the whole track is finished
                     const after = new Set([...read, chapterId]);
-                    if (course.chapters.length > 0 && course.chapters.every((c) => after.has(c.id))) {
+                    if (admin.certificatesEnabled && course.chapters.length > 0 && course.chapters.every((c) => after.has(c.id))) {
                       issueCertificate(courseId);
                       pushNotification(
                         isBn

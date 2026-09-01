@@ -16,6 +16,8 @@ import { Admin } from "./pages/Admin";
 import { NovaHelp } from "./pages/NovaHelp";
 import { NovaAssistant } from "./pages/NovaAssistant";
 import { FinalExam } from "./pages/FinalExam";
+import { CertificateVerify } from "./pages/CertificateVerify";
+import { Community } from "./pages/Community";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Boot: React.FC = () => {
@@ -51,7 +53,7 @@ const Boot: React.FC = () => {
 };
 
 const Views: React.FC = () => {
-  const { route } = useStore();
+  const { route, admin } = useStore();
   switch (route.view) {
     case "academy":
       return <Academy />;
@@ -67,6 +69,10 @@ const Views: React.FC = () => {
       return <NovaAssistant />;
     case "finalExam":
       return <FinalExam courseId={route.courseId!} chapterId={route.chapterId!} />;
+    case "community":
+      return admin.communityEnabled ? <Community /> : <Home />;
+    case "verify":
+      return admin.certificatesEnabled ? <CertificateVerify /> : <Home />;
     case "profile":
       return <Profile />;
     case "admin":
@@ -77,14 +83,26 @@ const Views: React.FC = () => {
 };
 
 const Gate: React.FC = () => {
-  const { user, route } = useStore();
+  const { user, route, nav } = useStore();
   const [booted, setBooted] = useState(false);
+
   useEffect(() => {
     const tm = window.setTimeout(() => setBooted(true), 1250);
     return () => window.clearTimeout(tm);
   }, []);
+
+  useEffect(() => {
+    const verifyId = new URLSearchParams(window.location.search).get("verify");
+    if (!verifyId) return;
+    if (route.view !== "verify" || route.verifyId !== verifyId) {
+      nav({ view: "verify", verifyId });
+    }
+  }, [route.view, route.verifyId, nav]);
+
   const view = !booted ? (
     <Boot />
+  ) : route.view === "verify" ? (
+    <CertificateVerify />
   ) : !user ? (
     route.view === "login" ? <Login /> : <Landing />
   ) : route.view === "landing" ? (
