@@ -1,17 +1,58 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ShieldCheck, UserRound, BookOpen, CalendarDays, BadgeCheck, ArrowLeft, IdCard, Award, Sparkles, Crown } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
 import { useStore } from "../store";
 
 export const CertificateVerify: React.FC = () => {
   const { certificates, isBn, nav, route } = useStore();
+  const [cert, setCert] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const verifyId = route.verifyId ?? new URLSearchParams(window.location.search).get("verify") ?? "";
-  const cert = useMemo(
-    () => certificates.find((item) => item.id === verifyId),
-    [certificates, verifyId]
-  );
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      if (!verifyId) {
+        setCert(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const snap = await getDoc(doc(db, "certificates", verifyId));
+        if (snap.exists()) {
+          setCert({ id: snap.id, ...snap.data() });
+        } else {
+          const localMatch = certificates.find((item) => item.id === verifyId);
+          setCert(localMatch || null);
+        }
+      } catch {
+        const localMatch = certificates.find((item) => item.id === verifyId);
+        setCert(localMatch || null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+  }, [certificates, verifyId]);
 
   const L = (en: string, bn: string) => (isBn ? bn : en);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 px-4 py-16 text-slate-100">
+        <div className="mx-auto max-w-lg rounded-3xl border border-cyan-500/20 bg-slate-900/80 p-8 text-center">
+          <div className="mx-auto mb-4 h-16 w-16 animate-pulse rounded-full bg-cyan-500/20" />
+          <h1 className="text-xl font-black uppercase tracking-[0.2em] text-cyan-200">
+            {L("Verifying…", "ভেরিফাই হচ্ছে…")}
+          </h1>
+        </div>
+      </div>
+    );
+  }
 
   if (!cert) {
     return (
@@ -42,6 +83,10 @@ export const CertificateVerify: React.FC = () => {
     month: "long",
     day: "numeric",
   });
+
+  const score = typeof cert.score === "number" ? cert.score : 100;
+  const passMark = typeof cert.passMark === "number" ? cert.passMark : 70;
+  const totalMarks = typeof cert.totalMarks === "number" ? cert.totalMarks : 100;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),_transparent_34%),linear-gradient(180deg,#020817,#0f172a)] px-4 py-8 text-slate-100 sm:px-6">
@@ -126,19 +171,29 @@ export const CertificateVerify: React.FC = () => {
                 color="text-emerald-300"
               />
               <SummaryItem
+                label={L("Score", "স্কোর")}
+                value={`${score}/${totalMarks}`}
+                color="text-cyan-300"
+              />
+              <SummaryItem
+                label={L("Pass Mark", "পাস মার্ক")}
+                value={`${passMark}/${totalMarks}`}
+                color="text-amber-300"
+              />
+              <SummaryItem
                 label={L("Program", "প্রোগ্রাম")}
                 value={isBn ? cert.courseTitleBn || cert.courseTitle : cert.courseTitle}
-                color="text-cyan-300"
+                color="text-violet-300"
               />
               <SummaryItem
                 label={L("Exam / Track", "এক্সাম / ট্র্যাক")}
                 value={isBn ? cert.examTitleBn || cert.examTitle || cert.courseTitleBn : cert.examTitle || cert.courseTitle}
-                color="text-amber-300"
+                color="text-emerald-300"
               />
               <SummaryItem
                 label={L("Holder", "ধারী")}
                 value={cert.name}
-                color="text-violet-300"
+                color="text-yellow-300"
               />
             </div>
 

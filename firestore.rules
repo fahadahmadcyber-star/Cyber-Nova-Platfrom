@@ -13,15 +13,6 @@ service cloud.firestore {
       );
     }
 
-    function isTicketOwner(ticketData) {
-      return isSignedIn() && (
-        ticketData.userId == request.auth.uid ||
-        ticketData.studentEmail == request.auth.token.email ||
-        ticketData.fromEmail == request.auth.token.email ||
-        ticketData.userEmail == request.auth.token.email
-      );
-    }
-
     match /admin/{document=**} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
@@ -43,95 +34,44 @@ service cloud.firestore {
     }
 
     match /support_tickets/{ticketId} {
-      allow create: if isSignedIn() && (
-        request.resource.data.userId == request.auth.uid ||
-        request.resource.data.studentEmail == request.auth.token.email ||
-        request.resource.data.fromEmail == request.auth.token.email ||
-        request.resource.data.userEmail == request.auth.token.email ||
-        isAdmin()
-      );
-
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        resource.data.studentEmail == request.auth.token.email ||
-        resource.data.fromEmail == request.auth.token.email ||
-        resource.data.userEmail == request.auth.token.email ||
-        isAdmin()
-      );
-
-      allow update: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        resource.data.studentEmail == request.auth.token.email ||
-        resource.data.fromEmail == request.auth.token.email ||
-        resource.data.userEmail == request.auth.token.email ||
-        isAdmin()
-      );
-
+      allow create: if isSignedIn();
+      allow read: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     match /support_messages/{messageId} {
-      allow create: if isSignedIn() && (
-        request.resource.data.userId == request.auth.uid ||
-        request.resource.data.studentEmail == request.auth.token.email ||
-        request.resource.data.fromEmail == request.auth.token.email ||
-        request.resource.data.userEmail == request.auth.token.email ||
-        isAdmin()
-      );
-
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        resource.data.studentEmail == request.auth.token.email ||
-        resource.data.fromEmail == request.auth.token.email ||
-        resource.data.userEmail == request.auth.token.email ||
-        isAdmin()
-      );
-
-      allow update: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        resource.data.studentEmail == request.auth.token.email ||
-        resource.data.fromEmail == request.auth.token.email ||
-        resource.data.userEmail == request.auth.token.email ||
-        isAdmin()
-      );
-
+      allow create: if isSignedIn();
+      allow read: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     match /community_rooms/{roomId} {
-      allow create: if isSignedIn() && (
-        request.resource.data.createdBy == request.auth.uid ||
-        request.resource.data.createdByEmail == request.auth.token.email ||
-        isAdmin()
-      );
-
+      allow create: if isSignedIn();
       allow read: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
 
-      allow update: if isSignedIn() && (
-        resource.data.createdBy == request.auth.uid ||
-        resource.data.createdByEmail == request.auth.token.email ||
-        isAdmin()
-      );
-
+    match /community_rooms/{roomId}/messages/{messageId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     match /progress/{progressId} {
-      allow create: if isSignedIn() && (
-        request.resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
+      allow create: if isSignedIn();
+      allow read: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
 
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-
-      allow update: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-
+    match /certificates/{certificateId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 

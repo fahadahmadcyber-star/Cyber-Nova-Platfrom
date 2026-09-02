@@ -10,6 +10,7 @@ import React, {
 import { Lang, dict, Dict } from "./data/i18n";
 import { courses as seedCourses, Course, Chapter, Section, Quiz, Exam } from "./data/courses";
 import { db } from "./firebase";
+import { saveCertificateToFirestore } from "./lib/firebaseAdmin";
 import {
   collection,
   doc,
@@ -184,6 +185,12 @@ export interface Certificate {
   name: string;
   location: string;
   education: string;
+  score?: number;
+  passMark?: number;
+  totalMarks?: number;
+  status?: "passed" | "issued";
+  issuedBy?: string;
+  verificationNote?: string;
 }
 
 export interface ExamResult {
@@ -925,9 +932,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     issueCertificate: (courseId) => {
       const course = state.curriculum.find((c) => c.id === courseId);
       if (!course) return;
+
+      let newCert: Certificate | null = null;
       setState((s) => {
         if (s.certificates.some((c) => c.courseId === courseId)) return s;
-        const cert: Certificate = {
+
+        newCert = {
           id: Math.random().toString(36).slice(2, 9),
           courseId,
           courseTitle: course.title,
@@ -938,16 +948,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           name: s.user?.name || "Student",
           location: s.user?.location || "",
           education: s.user?.education || "",
+          score: 100,
+          passMark: 70,
+          totalMarks: 100,
+          status: "passed",
+          issuedBy: "Cyber Nova",
+          verificationNote: "Verified by Cyber Nova certification registry.",
         };
+
         return {
           ...s,
-          certificates: [...s.certificates, cert],
+          certificates: [...s.certificates, newCert!],
           activity: [
             pushActivity({ kind: "certificate", ts: Date.now(), courseId, chapterId: "", xp: 0 }),
             ...s.activity,
           ].slice(0, 40),
         };
       });
+
+      if (newCert) {
+        void saveCertificateToFirestore(newCert as any);
+      }
     },
     pushNotification: (msg) =>
       setState((s) => ({
@@ -1226,8 +1247,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
 
         let certificates = s.certificates;
+        let newCert: Certificate | null = null;
         if (passed && !s.certificates.some((c) => c.courseId === courseId)) {
-          const cert: Certificate = {
+          newCert = {
             id: Math.random().toString(36).slice(2, 9),
             courseId,
             courseTitle: course?.title || "",
@@ -1238,9 +1260,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             name: s.user?.name || "Student",
             location: s.user?.location || "",
             education: s.user?.education || "",
+            score: score,
+            passMark: chapter?.exam?.passMark || 70,
+            totalMarks: chapter?.exam?.totalMarks || 100,
+            status: passed ? "passed" : "issued",
+            issuedBy: "Cyber Nova",
+            verificationNote: "Verified by Cyber Nova certification registry.",
           };
-          certificates = [...s.certificates, cert];
+          certificates = [...s.certificates, newCert];
         }
+        if (newCert) {
+          void saveCertificateToFirestore(newCert as any);
+        }
+
         return {
           ...s,
           finalExamResults: { ...s.finalExamResults, [resultKey]: result },

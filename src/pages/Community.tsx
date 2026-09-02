@@ -86,6 +86,11 @@ const createRoomId = (a: string, b: string) => [a, b].sort().join("::");
 
 const defaultAvatar = "https://ui-avatars.com/api/?name=Student&background=0b1325&color=facc15";
 
+const getUserKey = (value?: string | null, fallback?: string | null) => {
+  if (value && value.trim()) return value.trim();
+  return fallback || "guest";
+};
+
 export const Community: React.FC = () => {
   const { user, curriculum, isBn, nav } = useStore();
   const [directory, setDirectory] = useState<CommunityUser[]>([]);
@@ -104,7 +109,7 @@ export const Community: React.FC = () => {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentUser = user;
-  const currentUserId = currentUser?.email || "guest";
+  const currentUserId = getUserKey(currentUser?.uid, currentUser?.email);
 
   useEffect(() => {
     if (!user) {
@@ -114,15 +119,22 @@ export const Community: React.FC = () => {
 
     const usersRef = collection(db, "users");
     const unsub = onSnapshot(usersRef, (snapshot) => {
-      const list = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as CommunityUser[];
-      setDirectory(list.filter((entry) => entry.email !== currentUser?.email));
+      const list = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() as Record<string, any>;
+        const uid = getUserKey(data.uid || docSnap.id, data.email);
+        return {
+          id: docSnap.id,
+          uid,
+          ...data,
+          name: data.displayName || data.name || data.email || "Student",
+          email: data.email || "",
+        } as CommunityUser;
+      });
+      setDirectory(list.filter((entry) => getUserKey(entry.uid, entry.email) !== currentUserId));
     });
 
     return () => unsub();
-  }, [currentUser?.email, nav, user]);
+  }, [currentUserId, nav, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -130,7 +142,7 @@ export const Community: React.FC = () => {
     const unsub = onSnapshot(roomsRef, (snapshot) => {
       const arr = snapshot.docs
         .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() } as ChatRoom))
-        .filter((room) => room.participantIds?.includes(currentUserId))
+        .filter((room) => room.participantIds?.some((participant) => participant === currentUserId || participant === currentUser?.email))
         .sort((a, b) => {
           const at = isDateObj(a.updatedAt) ? a.updatedAt.toDate().getTime() : 0;
           const bt = isDateObj(b.updatedAt) ? b.updatedAt.toDate().getTime() : 0;
@@ -179,15 +191,17 @@ export const Community: React.FC = () => {
 
     const ensureDirectRooms = async () => {
       const roomIds = new Set<string>();
-      const rows = directory.filter((peer) => peer.email && peer.email !== currentUser?.email);
+      const rows = directory.filter((peer) => getUserKey(peer.uid, peer.email) !== currentUserId);
       for (const peer of rows) {
-        const roomId = createRoomId(currentUserId, peer.email);
+        const peerId = getUserKey(peer.uid, peer.email || peer.id);
+        const roomId = createRoomId(currentUserId, peerId);
         roomIds.add(roomId);
       }
 
       const roomSnap = await getDocs(collection(db, "community_rooms"));
       const existing = new Set(roomSnap.docs.map((docSnap) => docSnap.id));
       const batch = writeBatch(db);
+      let hasMutations = false;
       for (const roomId of roomIds) {
         if (!existing.has(roomId)) {
           const [a, b] = roomId.split("::");
@@ -201,9 +215,10 @@ export const Community: React.FC = () => {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
+          hasMutations = true;
         }
       }
-      await batch.commit();
+      if (hasMutations) await batch.commit();
     };
 
     void ensureDirectRooms();
@@ -217,6 +232,7 @@ export const Community: React.FC = () => {
       const batch = writeBatch(db);
       const roomSnap = await getDocs(collection(db, "community_rooms"));
       const existing = new Set(roomSnap.docs.map((d) => d.id));
+      let hasMutations = false;
 
       for (const courseId of courseIds) {
         const roomId = `course:${courseId}`;
@@ -232,8 +248,9 @@ export const Community: React.FC = () => {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        hasMutations = true;
       }
-      if (batch._mutations.length) await batch.commit();
+      if (hasMutations) await batch.commit();
     };
 
     void ensureCourseRooms();
@@ -249,15 +266,18 @@ export const Community: React.FC = () => {
 
   const roomPeers = useMemo(() => {
     if (!activeRoom) return [] as CommunityUser[];
-    return directory.filter((entry) => activeRoom.participantIds.includes(entry.email || entry.id));
+    return directory.filter((entry) => {
+      const itemKey = getUserKey(entry.uid, entry.email || entry.id);
+      return activeRoom.participantIds.some((pid) => pid === itemKey || pid === entry.email || pid === entry.id);
+    });
   }, [activeRoom, directory]);
 
   const lovelyTitle = activeRoom?.type === "direct"
     ? roomPeers[0]?.name || "Direct Message"
     : activeRoom?.name || "Community";
 
-  const buildRoom = async (peerEmail: string) => {
-    const roomId = createRoomId(currentUserId, peerEmail);
+  const buildRoom = async (peerId: string) => {
+    const roomId = createRoomId(currentUserId, peerId);
     const roomRef = doc(db, "community_rooms", roomId);
     const roomSnap = await getDoc(roomRef);
     if (!roomSnap.exists()) {
@@ -265,7 +285,7 @@ export const Community: React.FC = () => {
         id: roomId,
         type: "direct",
         name: "Direct Message",
-        participantIds: [currentUserId, peerEmail],
+        participantIds: [currentUserId, peerId],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

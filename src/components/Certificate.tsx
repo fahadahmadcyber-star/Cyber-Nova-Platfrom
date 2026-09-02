@@ -10,10 +10,8 @@ import { Download, QrCode, Award, Loader2, FileImage, FileText } from "lucide-re
 /**
  * PROFESSIONAL CERTIFICATE
  * - Gold double-frame, ornamental corners, embossed seal, founder signature
- * - Unique Certificate ID + verification QR code
- * - Scanning the QR opens the Cyber Nova production site DIRECTLY —
- *   no third-party or preview middle link in between.
- * - Download produces a real PDF file straight to the device (no browser tab).
+ * - Unique Certificate ID + QR code that opens the live platform directly
+ * - Download PDF prints as a white-background black-text document for physical printing
  */
 
 /* ── Your main production domain. Edit only this line if it changes. ── */
@@ -41,8 +39,8 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
   const [generating, setGenerating] = useState(false);
 
   const siteUrl = resolveSiteUrl();
-  const verifyUrl = `${siteUrl}/?verify=${encodeURIComponent(cert.id)}`;
-  const qrSrc = QR_API(verifyUrl, 260);
+  const qrTarget = siteUrl;
+  const qrSrc = QR_API(qrTarget, 260, "0b1226", "facc15");
 
   const date = new Date(cert.earnedAt).toLocaleDateString(isBn ? "bn-BD" : "en-US", {
     year: "numeric",
@@ -132,10 +130,9 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
       const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 24;
+      const margin = 26;
       const imgWidth = pageWidth - margin * 2;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
       const usableHeight = pageHeight - margin * 2;
       const finalHeight = Math.min(imgHeight, usableHeight);
       const finalWidth = (canvas.width * finalHeight) / canvas.height;
@@ -143,7 +140,7 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
       pdf.addImage(imgData, "PNG", (pageWidth - finalWidth) / 2, margin, finalWidth, finalHeight);
       pdf.save(`CyberNova_Certificate_${cert.id}.pdf`);
 
-      toast(L("PDF downloaded", "পিডিএফ ডাউনলোড হয়েছে"), "xp");
+      toast(L("PDF downloaded in certificate style", "পিডিএফ ডাউনলোড হয়েছে সার্টিফিকেট স্টাইলে"), "xp");
     } catch (err) {
       console.error("[cybernova] pdf export failed:", err);
       toast(L("PDF export failed — try again", "পিডিএফ এক্সপোর্ট ব্যর্থ — আবার চেষ্টা করো"), "warn");

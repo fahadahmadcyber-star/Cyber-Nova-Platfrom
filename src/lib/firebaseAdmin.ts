@@ -57,8 +57,45 @@ export async function saveUserToFirestore(user: User & { id: string }, xp = 0, l
     xp,
     level,
     status: "active",
+    online: true,
+    lastSeen: serverTimestamp(),
   };
   await setDoc(userRef, data, { merge: true });
+}
+
+export async function saveCertificateToFirestore(cert: Record<string, any>) {
+  const ref = doc(db, "certificates", cert.id);
+  await setDoc(
+    ref,
+    {
+      ...cert,
+      status: "passed",
+      issuedBy: "Cyber Nova",
+      verificationNote: "Verified by Cyber Nova certification registry.",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+export async function setUserPresence(userId: string, user: Partial<User> | null, isOnline: boolean) {
+  if (!userId || !user) return;
+  const userRef = doc(db, "users", userId);
+  await setDoc(
+    userRef,
+    {
+      id: userId,
+      email: user.email || "",
+      displayName: user.name || user.email || "Student",
+      photoURL: user.avatarUrl || "",
+      role: user.role || "user",
+      online: isOnline,
+      lastSeen: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 /** Get all users (for admin panel table) */

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { StoreProvider, useStore } from "./store";
+import { auth } from "./firebase";
 import { Login } from "./components/Login";
 import { AppShell, FloatingLang } from "./components/Shell";
 import { Toasts } from "./components/ui";
@@ -19,6 +20,7 @@ import { FinalExam } from "./pages/FinalExam";
 import { CertificateVerify } from "./pages/CertificateVerify";
 import { Community } from "./pages/Community";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { setUserPresence } from "./lib/firebaseAdmin";
 
 const Boot: React.FC = () => {
   const { t } = useStore();
@@ -82,6 +84,48 @@ const Views: React.FC = () => {
   }
 };
 
+const PresenceSync: React.FC = () => {
+  const { user } = useStore();
+
+  useEffect(() => {
+    if (!auth || !user?.uid) return;
+
+    const sync = async (online: boolean) => {
+      await setUserPresence(user.uid!, user, online);
+    };
+
+    void sync(true);
+
+    const interval = window.setInterval(() => {
+      void sync(true);
+    }, 30000);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        void sync(false);
+      } else {
+        void sync(true);
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      void sync(false);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      void sync(false);
+    };
+  }, [user?.uid, user?.email, user?.name, user?.avatarUrl, user?.role]);
+
+  return null;
+};
+
 const Gate: React.FC = () => {
   const { user, route, nav } = useStore();
   const [booted, setBooted] = useState(false);
@@ -115,6 +159,7 @@ const Gate: React.FC = () => {
   );
   return (
     <>
+      <PresenceSync />
       {view}
       <FloatingLang />
     </>

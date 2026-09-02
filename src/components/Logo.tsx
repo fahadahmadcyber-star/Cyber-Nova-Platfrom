@@ -1,29 +1,30 @@
 import React, { useId } from "react";
 
+import novaAsset from "../assets/nova.jpeg";
 import { useStore } from "../store";
 
-export const LogoMark: React.FC<{ size?: number }> = ({ size = 40 }) => {
+export const LogoMark: React.FC<{ size?: number }> = ({ size = 42 }) => {
   const { admin } = useStore();
   const gradientId = useId().replace(/:/g, "");
+  const imageSrc = admin.logoUrl || novaAsset;
 
-  if (admin.logoUrl) {
+  if (admin.logoUrl || novaAsset) {
     return (
       <div
-        className="relative flex items-center justify-center overflow-hidden border border-cyan-400/30 bg-slate-950/80 shadow-[0_0_35px_rgba(34,211,238,0.18)]"
+        className="relative flex items-center justify-center overflow-hidden"
         style={{
           width: size,
           height: size,
-          borderRadius: 16,
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16), 0 0 28px rgba(34,211,238,0.18)",
+          borderRadius: 18,
         }}
       >
         <img
-          src={admin.logoUrl}
+          src={imageSrc}
           alt={admin.siteNameEn || "Cyber Nova"}
           width={size}
           height={size}
-          className="relative h-full w-full object-cover object-center"
-          style={{ borderRadius: 16, filter: "drop-shadow(0 0 14px rgba(34,211,238,0.24)) saturate(1.05)" }}
+          className="relative h-full w-full object-contain object-center"
+          style={{ borderRadius: 18, filter: "drop-shadow(0 10px 18px rgba(76, 166, 255, 0.14))" }}
         />
       </div>
     );
@@ -31,41 +32,31 @@ export const LogoMark: React.FC<{ size?: number }> = ({ size = 40 }) => {
 
   return (
     <div
-      className="relative flex items-center justify-center overflow-hidden border border-cyan-400/30 bg-slate-950/80"
+      className="relative flex items-center justify-center overflow-hidden"
       style={{
         width: size,
         height: size,
         borderRadius: 18,
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 28px rgba(45,212,191,0.16)",
       }}
       aria-label="Cyber Nova"
     >
       <svg viewBox="0 0 120 120" width={size} height={size} className="relative h-full w-full">
         <defs>
-          <linearGradient id={`bg-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#0b1222" />
-            <stop offset="45%" stopColor="#111827" />
-            <stop offset="100%" stopColor="#030712" />
+          <linearGradient id={`logo-ring-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#6feaf9" />
+            <stop offset="45%" stopColor="#49c7ff" />
+            <stop offset="100%" stopColor="#5f7dff" />
           </linearGradient>
-          <linearGradient id={`ring-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#67e8f9" />
-            <stop offset="50%" stopColor="#22d3ee" />
-            <stop offset="100%" stopColor="#34d399" />
-          </linearGradient>
-          <linearGradient id={`mark-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#d9f99d" />
-            <stop offset="40%" stopColor="#67e8f9" />
-            <stop offset="100%" stopColor="#a78bfa" />
+          <linearGradient id={`logo-mark-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#b7f5ff" />
+            <stop offset="50%" stopColor="#76d9ff" />
+            <stop offset="100%" stopColor="#6d8dff" />
           </linearGradient>
         </defs>
 
-        <rect x="4" y="4" width="112" height="112" rx="26" fill={`url(#bg-${gradientId})`} stroke="rgba(103,232,249,0.38)" />
-        <circle cx="60" cy="60" r="41" fill="none" stroke={`url(#ring-${gradientId})`} strokeWidth="2.4" opacity="0.7" />
-        <circle cx="60" cy="60" r="30" fill="none" stroke="rgba(103,232,249,0.38)" strokeWidth="1.3" strokeDasharray="4 7" />
-        <path d="M28 80V42L52 70L60 60L68 70L92 42V80" fill="none" stroke={`url(#mark-${gradientId})`} strokeWidth="6.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M46 34L60 50L74 34" fill="none" stroke={`url(#mark-${gradientId})`} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-        <circle cx="60" cy="60" r="4.5" fill="#ecfeff" />
-        <path d="M60 18V10M102 60H110M60 102V110M18 60H10" stroke="rgba(103,232,249,0.72)" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="60" cy="60" r="42" fill="none" stroke={`url(#logo-ring-${gradientId})`} strokeWidth="3.2" opacity="0.96" />
+        <path d="M42 82V38H50L66 60V38H78V82H70L54 60V82H42Z" fill="none" stroke={`url(#logo-mark-${gradientId})`} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M52 26H68" fill="none" stroke={`url(#logo-mark-${gradientId})`} strokeWidth="4" strokeLinecap="round" opacity="0.9" />
       </svg>
     </div>
   );
@@ -81,18 +72,26 @@ export const Logo: React.FC<{ size?: number; withText?: boolean; compact?: boole
   const brandTag = isBn ? (admin.siteTaglineBn || "সিকিউরিটি একাডেমি") : (admin.siteTaglineEn || "Security Academy");
 
   return (
-    <span className="inline-flex items-center gap-2.5 select-none">
-      <LogoMark size={size} />
+    <span className="inline-flex items-center gap-3 select-none">
+      <LogoMark size={size + 8} />
       {withText && (
         <span className="leading-none">
           <span
-            className="block font-black tracking-[0.14em] neon-text"
-            style={{ fontFamily: "var(--font-display)", fontSize: compact ? 14 : 17 }}
+            className="block font-black"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: compact ? 15 : 19,
+              letterSpacing: "0.06em",
+              background: "linear-gradient(90deg, #9ee8ff 0%, #74d8ff 20%, #5ca6ff 45%, #6d8dff 75%, #6d8dff 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              textShadow: "0 0 8px rgba(92, 166, 255, 0.08)",
+            }}
           >
             {brandName}
           </span>
           {!compact && (
-            <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.42em] text-slate-500">
+            <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.36em]" style={{ color: "#bfdcff", opacity: 0.82 }}>
               {brandTag}
             </span>
           )}
