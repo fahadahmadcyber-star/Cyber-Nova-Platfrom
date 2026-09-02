@@ -270,7 +270,7 @@ export const Certificate: React.FC<{ cert: CertType; isBn?: boolean }> = ({ cert
                 />
               </div>
               <div className="mt-1.5 flex items-center gap-0.5 text-[6px] uppercase tracking-[0.22em] text-yellow-200/80">
-                <QrCode size={8} /> {L("Verify Authenticity", "সত্যতা যাচাই করুন")}
+                <QrCode size={8} /> {L("Scan to Visit", "ভিজিট করতে স্ক্যান করুন")}
               </div>
             </div>
           </div>

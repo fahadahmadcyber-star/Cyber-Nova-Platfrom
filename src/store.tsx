@@ -287,8 +287,8 @@ const DEFAULT_ADMIN: AdminContent = {
   siteTaglineEn: "Security Academy",
   siteTaglineBn: "সিকিউরিটি একাডেমি",
   logoUrl: "",
-  heroTitleEn: "Log In. Break the Code. Secure the Digital Universe.",
-  heroTitleBn: "লগইন করো। কোড ভাঙো। ডিজিটাল মহাবিশ্ব সুরক্ষিত করো।",
+  heroTitleEn: "Learn to Hack. Learn to Defend.",
+  heroTitleBn: "হ্যাকিং শেখো। প্রতিরোধ শেখো।",
   heroSubEn:
     "A gamified hands-on playground where absolute beginners and future elite hackers train side by side. Read, break, quiz, rank up — all inside your browser.",
   heroSubBn:
@@ -452,6 +452,12 @@ function load(): Persisted {
       curriculum: orderCurriculum(p.curriculum || DEFAULT_STATE.curriculum),
       admin: { ...DEFAULT_ADMIN, ...(p.admin || {}) },
     };
+    if (p.admin?.heroTitleEn === "Log In. Break the Code. Secure the Digital Universe.") {
+      merged.admin.heroTitleEn = DEFAULT_ADMIN.heroTitleEn;
+    }
+    if (p.admin?.heroTitleBn === "লগইন করো। কোড ভাঙো। ডিজিটাল মহাবিশ্ব সুরক্ষিত করো।") {
+      merged.admin.heroTitleBn = DEFAULT_ADMIN.heroTitleBn;
+    }
     if (p.curriculumVersion !== CURRICULUM_VERSION) {
       return {
         ...merged,
