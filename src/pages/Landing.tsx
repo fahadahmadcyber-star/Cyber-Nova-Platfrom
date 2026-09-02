@@ -115,7 +115,7 @@ export const Landing: React.FC = () => {
               <Sparkles size={11} /> {L("The gamified cybersecurity academy", "গেমিফাইড সাইবার নিরাপত্তা অ্যাকাডেমি")}
             </span>
             <h1 className="mt-5 text-4xl sm:text-5xl lg:text-[3.5rem] font-black leading-[1.08] max-w-xl">
-              <span className="neon-text text-glow-cyan">{isBn ? admin.heroTitleBn : admin.heroTitleEn}</span>
+              <span className="neon-text text-glow-cyan">{L("Learn to Hack. Learn to Defend.", "হ্যাকিং শেখো। প্রতিরোধ শেখো।")}</span>
               <span className="block text-white mt-2">{L("Become Unstoppable.", "অপরাজেয় হও।")}</span>
             </h1>
             <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-slate-400">
