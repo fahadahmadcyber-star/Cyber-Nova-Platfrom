@@ -32,7 +32,7 @@ export const Login: React.FC = () => {
         void saveUserToFirestore({ id: uid, name: n, email: e, avatarUrl, joinedAt: Date.now(), role: isAdmin ? "admin" : "user" });
       }
       login(
-        { name: n, email: e, avatarUrl, joinedAt: Date.now(), role: isAdmin ? "admin" : "user" },
+        { uid, name: n, email: e, avatarUrl, joinedAt: Date.now(), role: isAdmin ? "admin" : "user" },
         { view: isAdmin ? "admin" : "home" }
       );
       toast(

@@ -76,6 +76,7 @@ export interface Note {
   ts: number;
 }
 export interface User {
+  uid?: string;
   name: string;
   email: string;
   avatarUrl: string;
@@ -223,6 +224,7 @@ export interface SupportReply {
 }
 export interface SupportTicket {
   id: string;
+  userId?: string;
   studentName: string;
   studentEmail: string;
   studentAvatar?: string;
@@ -1272,9 +1274,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const existing = state.tickets.find((tk) => tk.studentEmail.toLowerCase() === userEmail);
       const ticketId = existing?.id || Math.random().toString(36).slice(2, 9);
 
+      const ticketUserId = state.user.uid || existing?.userId || state.user.email;
+
       const updatedTicket: SupportTicket = existing
         ? {
             ...existing,
+            userId: ticketUserId,
             studentName: state.user.name,
             studentAvatar: state.user.avatarUrl,
             updatedAt: Date.now(),
@@ -1283,6 +1288,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         : {
             id: ticketId,
+            userId: ticketUserId,
             studentName: state.user.name,
             studentEmail: state.user.email,
             studentAvatar: state.user.avatarUrl,

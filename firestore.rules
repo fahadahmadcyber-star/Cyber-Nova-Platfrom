@@ -8,41 +8,130 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == 'fahadahmad.cyber@gmail.com' ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
       );
     }
 
+    function isTicketOwner(ticketData) {
+      return isSignedIn() && (
+        ticketData.userId == request.auth.uid ||
+        ticketData.studentEmail == request.auth.token.email ||
+        ticketData.fromEmail == request.auth.token.email ||
+        ticketData.userEmail == request.auth.token.email
+      );
+    }
+
     match /admin/{document=**} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /platform/{document=**} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /settings/{document=**} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /curriculum/{document=**} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /support_tickets/{ticketId} {
-      allow create: if true;
-      allow read: if true;
-      allow update: if true;
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.studentEmail == request.auth.token.email ||
+        request.resource.data.fromEmail == request.auth.token.email ||
+        request.resource.data.userEmail == request.auth.token.email ||
+        isAdmin()
+      );
+
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.studentEmail == request.auth.token.email ||
+        resource.data.fromEmail == request.auth.token.email ||
+        resource.data.userEmail == request.auth.token.email ||
+        isAdmin()
+      );
+
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.studentEmail == request.auth.token.email ||
+        resource.data.fromEmail == request.auth.token.email ||
+        resource.data.userEmail == request.auth.token.email ||
+        isAdmin()
+      );
+
       allow delete: if isAdmin();
     }
 
     match /support_messages/{messageId} {
-      allow create: if true;
-      allow read: if true;
-      allow update: if true;
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.studentEmail == request.auth.token.email ||
+        request.resource.data.fromEmail == request.auth.token.email ||
+        request.resource.data.userEmail == request.auth.token.email ||
+        isAdmin()
+      );
+
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.studentEmail == request.auth.token.email ||
+        resource.data.fromEmail == request.auth.token.email ||
+        resource.data.userEmail == request.auth.token.email ||
+        isAdmin()
+      );
+
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.studentEmail == request.auth.token.email ||
+        resource.data.fromEmail == request.auth.token.email ||
+        resource.data.userEmail == request.auth.token.email ||
+        isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /community_rooms/{roomId} {
+      allow create: if isSignedIn() && (
+        request.resource.data.createdBy == request.auth.uid ||
+        request.resource.data.createdByEmail == request.auth.token.email ||
+        isAdmin()
+      );
+
+      allow read: if isSignedIn();
+
+      allow update: if isSignedIn() && (
+        resource.data.createdBy == request.auth.uid ||
+        resource.data.createdByEmail == request.auth.token.email ||
+        isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /progress/{progressId} {
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+
       allow delete: if isAdmin();
     }
 
@@ -54,7 +143,7 @@ service cloud.firestore {
     }
 
     match /{document=**} {
-      allow read: if true;
+      allow read: if false;
       allow write: if false;
     }
   }
