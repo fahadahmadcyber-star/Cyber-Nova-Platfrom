@@ -5,9 +5,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isOwner() {
+      return isSignedIn() &&
+        request.auth.token.email == 'fahadahmad.cyber@gmail.com';
+    }
+
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'fahadahmad.cyber@gmail.com' ||
+      return isOwner() || (
+        isSignedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
       );
@@ -76,9 +81,13 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        (request.resource.data.role == 'user' || isAdmin());
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow update: if isSignedIn() &&
+        (isAdmin() ||
+          (request.auth.uid == userId &&
+            request.resource.data.role == resource.data.role));
       allow delete: if isAdmin();
     }
 

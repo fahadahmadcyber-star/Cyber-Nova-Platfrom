@@ -9,11 +9,13 @@ import React, {
 } from "react";
 import { Lang, dict, Dict } from "./data/i18n";
 import { courses as seedCourses, Course, Chapter, Section, Quiz, Exam } from "./data/courses";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { saveCertificateToFirestore } from "./lib/firebaseAdmin";
 import {
   collection,
   doc,
+  arrayUnion,
   setDoc,
   onSnapshot,
   query,
@@ -509,6 +511,7 @@ interface Store extends Persisted {
   factoryReset: () => void;
   issueCertificate: (courseId: string) => void;
   pushNotification: (msg: string) => void;
+  broadcastNotification: (msg: string) => void;
   markAllRead: () => void;
   // ---- curriculum CRUD (owner) ----
   addCourse: (title: string, titleBn: string) => void;
@@ -561,8 +564,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [state, setState] = useState<Persisted>(load);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [activeAchievement, setActiveAchievement] = useState<ActiveAchievement | null>(null);
+  const [firebaseUid, setFirebaseUid] = useState<string | null>(auth.currentUser?.uid ?? null);
+  const [curriculumReady, setCurriculumReady] = useState(false);
   const saveTimer = useRef<number | null>(null);
   const achTimer = useRef<number | null>(null);
+  const curriculumReadyRef = useRef(false);
 
   // persist (debounced)
   useEffect(() => {
@@ -581,6 +587,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     const settingsRef = doc(db, "admin", "settings");
+    if (!firebaseUid) return;
     const unsubscribe = onSnapshot(settingsRef, (snap) => {
       if (!snap.exists()) return;
       const next = snap.data() as Partial<AdminContent>;
@@ -592,11 +599,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error("[cybernova] Firestore admin config sync failed:", error);
     });
     return () => unsubscribe();
-  }, []);
+  }, [firebaseUid]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setFirebaseUid(firebaseUser?.uid ?? null);
+      if (!firebaseUser) {
+        curriculumReadyRef.current = false;
+        setCurriculumReady(false);
+      }
+      if (state.user?.role === "admin" && !firebaseUser) {
+        // Remove sessions created by the old local-only admin fallback.
+        setState((prev) => ({ ...prev, user: null, route: { view: "login" } }));
+      }
+    });
+    return () => unsubscribe();
+  }, [state.user?.role]);
 
   useEffect(() => {
     const curriculumRef = doc(db, "platform", "curriculum");
+    if (!firebaseUid) return;
+    curriculumReadyRef.current = false;
+    setCurriculumReady(false);
     const unsubscribe = onSnapshot(curriculumRef, (snap) => {
+      curriculumReadyRef.current = true;
+      setCurriculumReady(true);
       if (!snap.exists()) return;
       const payload = snap.data();
       const nextCurriculum = Array.isArray(payload?.items) ? payload.items as Course[] : [];
@@ -610,20 +637,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error("[cybernova] Firestore curriculum sync failed:", error);
     });
     return () => unsubscribe();
-  }, []);
+  }, [firebaseUid]);
 
   useEffect(() => {
-    const payload = { items: sanitizeForFirestore(state.curriculum), updatedAt: Date.now() };
-    setDoc(doc(db, "platform", "curriculum"), payload, { merge: true }).catch(() => {
-      /* ignore remote sync failures */
+    const notificationsRef = doc(db, "platform", "notifications");
+    if (!firebaseUid) return;
+    return onSnapshot(notificationsRef, (snap) => {
+      const remote = snap.data()?.items;
+      if (!Array.isArray(remote)) return;
+      setState((prev) => {
+        const merged = new Map([...prev.notifications, ...remote].map((item) => [item.id, item]));
+        return { ...prev, notifications: [...merged.values()].sort((a, b) => b.ts - a.ts).slice(0, 30) };
+      });
+    }, (error) => {
+      console.error("[cybernova] Firestore notification sync failed:", error);
     });
-  }, [state.curriculum]);
+  }, [firebaseUid]);
+
+  useEffect(() => {
+    if (!firebaseUid || !curriculumReady || !curriculumReadyRef.current) return;
+    const payload = { items: sanitizeForFirestore(state.curriculum), updatedAt: Date.now() };
+    setDoc(doc(db, "platform", "curriculum"), payload, { merge: true }).catch((error) => {
+      console.error("[cybernova] Firestore curriculum write failed:", error);
+    });
+  }, [state.curriculum, firebaseUid, curriculumReady]);
 
   // Real-time Firestore sync for support tickets.
   // Keep both the new canonical "support_tickets" collection and the older
   // "support_messages" collection readable, but avoid nested listeners so the
   // student/admin sync stays reliable and deterministic.
   useEffect(() => {
+    if (!firebaseUid) return;
     const mergeTickets = (base: SupportTicket[], incoming: SupportTicket[]) => {
       const merged = new Map<string, SupportTicket>();
 
@@ -711,7 +755,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubTickets();
       unsubLegacy();
     };
-  }, []);
+  }, [firebaseUid]);
 
   const toast = useCallback((msg: string, kind: Toast["kind"] = "info") => {
     const id = ++toastId;
@@ -908,7 +952,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setState((s) => {
         const nextAdmin = { ...s.admin, ...p };
         setDoc(doc(db, "admin", "settings"), nextAdmin, { merge: true }).catch(() => {
-          /* ignore remote sync failures */
+          console.error("[cybernova] Firestore admin settings write failed. Check Firebase Auth and rules.");
         });
         return { ...s, admin: nextAdmin };
       }),
@@ -981,6 +1025,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ...s,
         notifications: [{ id: Math.random().toString(36).slice(2, 9), msg, ts: Date.now(), read: false }, ...s.notifications].slice(0, 30),
       })),
+    broadcastNotification: (msg) => {
+      const item = { id: Math.random().toString(36).slice(2, 9), msg, ts: Date.now(), read: false };
+      setState((s) => ({
+        ...s,
+        notifications: [item, ...s.notifications].slice(0, 30),
+      }));
+      setDoc(doc(db, "platform", "notifications"), { items: arrayUnion(item) }, { merge: true }).catch((error) => {
+        console.error("[cybernova] Firestore notification broadcast failed:", error);
+      });
+    },
     markAllRead: () =>
       setState((s) => ({
         ...s,

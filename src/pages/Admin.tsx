@@ -33,7 +33,7 @@ const Field: React.FC<{ label: string; value: string; onChange: (v: string) => v
 export const Admin: React.FC = () => {
   const {
     t, admin, setAdmin, factoryReset, toast, isBn, user, nav,
-    pushNotification, notifications, curriculum,
+    pushNotification, broadcastNotification, notifications, curriculum,
   } = useStore();
 
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -96,7 +96,7 @@ export const Admin: React.FC = () => {
 
   const sendNotify = () => {
     const msg = (isBn ? notifyMsgBn || notifyMsg : notifyMsg || notifyMsgBn).trim() || L("New update from Cyber Nova", "সাইবার নোভা থেকে নতুন আপডেট");
-    pushNotification(msg);
+    broadcastNotification(msg);
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       try { new Notification("Cyber Nova", { body: msg }); } catch { /* ignore */ }
     }

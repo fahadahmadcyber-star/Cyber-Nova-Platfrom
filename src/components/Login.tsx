@@ -144,7 +144,18 @@ export const Login: React.FC = () => {
       }
 
       // ✅ Sign In path
-      const signInCred = await signInWithEmailAndPassword(auth, trimmedEmail, pass);
+      let signInCred;
+      try {
+        signInCred = await signInWithEmailAndPassword(auth, trimmedEmail, pass);
+      } catch (signInError: any) {
+        // The owner credentials may predate the Firebase Auth account. Provision
+        // that one account so the admin session has a real Firebase identity.
+        if (isOwner && signInError?.code === "auth/user-not-found") {
+          signInCred = await createUserWithEmailAndPassword(auth, trimmedEmail, pass);
+        } else {
+          throw signInError;
+        }
+      }
       const storedProfile = await getUserProfile(signInCred.user.uid);
       if (storedProfile?.status === "disabled") {
         await signOut(auth);
@@ -168,13 +179,6 @@ export const Login: React.FC = () => {
       const message: string = e?.message || String(e);
       // Log full error object to console for debugging.
       console.error("[cybernova] Firebase auth error:", { code, message, error: e });
-
-      // Owner backend fallback (only for LOGIN mode)
-      if (mode === "login" && isOwner) {
-        toast(isBn ? "ওনার ব্যাকএন্ড অ্যাক্সেস অনুমোদিত" : "Owner backend access granted", "xp");
-        enter("Owner Admin", trimmedEmail, true);
-        return;
-      }
 
       setFormError(fbErrorMessage(code, isBn, message));
       setErr(true);
