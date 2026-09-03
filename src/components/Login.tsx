@@ -7,7 +7,7 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile,
   signInWithPopup, signOut,
 } from "firebase/auth";
-import { auth, fbErrorMessage, googleProvider } from "../firebase";
+import { auth, fbErrorMessage, googleProvider, isFirebaseConfigured } from "../firebase";
 import { useStore, isAdminCredentials } from "../store";
 import { Logo } from "./Logo";
 import { getUserProfile, saveUserToFirestore } from "../lib/firebaseAdmin";
@@ -104,9 +104,9 @@ export const Login: React.FC = () => {
     const isOwner = isAdminCredentials(trimmedEmail, pass).ok;
 
     // 3) Guard — reject empty auth handle
-    if (!auth) {
+    if (!auth || !isFirebaseConfigured) {
       setFormError(
-        isBn ? "Firebase অথেন্টিকেশন প্রস্তুত নয়।" : "Firebase authentication is not ready."
+        isBn ? "Firebase API key সেট করা হয়নি।" : "Firebase API key is not configured."
       );
       setErr(true);
       setTimeout(() => setErr(false), 650);
@@ -209,8 +209,8 @@ export const Login: React.FC = () => {
   const signInWithGoogle = async () => {
     if (loading) return;
     setFormError("");
-    if (!auth) {
-      setFormError(isBn ? "Firebase অথেন্টিকেশন প্রস্তুত নয়।" : "Firebase authentication is not ready.");
+    if (!auth || !isFirebaseConfigured) {
+      setFormError(isBn ? "Firebase API key সেট করা হয়নি।" : "Firebase API key is not configured.");
       return;
     }
     setAuthBusy(true);

@@ -23,6 +23,10 @@ const firebaseConfig = {
   appId: getEnv("VITE_FIREBASE_APP_ID"),
 };
 
+export const isFirebaseConfigured = Object.values(firebaseConfig).every(
+  (value) => value.length > 0 && !value.includes("REPLACE_WITH") && !value.includes("BASE_WEB_API_KEY")
+);
+
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
