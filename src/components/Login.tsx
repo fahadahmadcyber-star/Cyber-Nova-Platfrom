@@ -150,8 +150,20 @@ export const Login: React.FC = () => {
       } catch (signInError: any) {
         // The owner credentials may predate the Firebase Auth account. Provision
         // that one account so the admin session has a real Firebase identity.
-        if (isOwner && signInError?.code === "auth/user-not-found") {
-          signInCred = await createUserWithEmailAndPassword(auth, trimmedEmail, pass);
+        if (
+          isOwner &&
+          (signInError?.code === "auth/user-not-found" ||
+            signInError?.code === "auth/invalid-credential")
+        ) {
+          try {
+            signInCred = await createUserWithEmailAndPassword(auth, trimmedEmail, pass);
+          } catch (provisionError: any) {
+            // An existing account with a different password must remain a normal
+            // authentication failure; never replace it or silently bypass Auth.
+            throw provisionError?.code === "auth/email-already-in-use"
+              ? signInError
+              : provisionError;
+          }
         } else {
           throw signInError;
         }

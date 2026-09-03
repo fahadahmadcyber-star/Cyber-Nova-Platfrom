@@ -9,18 +9,18 @@ import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
  * Keep the hard-coded values only as a legacy fallback for local builds or
  * projects that have not yet set their VITE_FIREBASE_* environment variables.
  */
-const getEnv = (key: string, fallback: string) => {
-  const value = (import.meta.env[key] ?? fallback).toString().trim();
-  return value || fallback;
+const getEnv = (key: string) => {
+  const value = import.meta.env[key];
+  return typeof value === "string" ? value.trim() : "";
 };
 
 const firebaseConfig = {
-  apiKey: getEnv("VITE_FIREBASE_API_KEY", "AIzaSyA01ODjfD0hEvffGFuK9tumwZIerbuaOz8"),
-  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN", "cyber-nova-91814.firebaseapp.com"),
-  projectId: getEnv("VITE_FIREBASE_PROJECT_ID", "cyber-nova-91814"),
-  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET", "cyber-nova-91814.firebasestorage.app"),
-  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID", "222532451314"),
-  appId: getEnv("VITE_FIREBASE_APP_ID", "1:222532451314:web:1e9830b72cf81e90d7096b"),
+  apiKey: getEnv("VITE_FIREBASE_API_KEY"),
+  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: getEnv("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: getEnv("VITE_FIREBASE_APP_ID"),
 };
 
 import { getFirestore, type Firestore } from "firebase/firestore";
