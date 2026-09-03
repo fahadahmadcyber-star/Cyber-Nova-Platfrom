@@ -11,6 +11,13 @@ import {
   resetOwnerCredentials,
   ADMIN_EMAIL,
 } from "../../store";
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updateEmail,
+  updatePassword,
+} from "firebase/auth";
+import { auth } from "../../firebase";
 
 /* ---------- small building blocks ---------- */
 const Section: React.FC<{
@@ -94,16 +101,22 @@ export const SettingsPrivacy: React.FC = () => {
   const [analytics, setAnalytics] = useState(true);
   const [autoReply, setAutoReply] = useState(false);
 
-  const saveCredentials = () => {
+  const saveCredentials = async () => {
     const cur = getOwnerCredentials();
     if (!email.trim()) {
       toast(L("Email cannot be empty", "ইমেইল খালি রাখা যাবে না"), "warn");
       return;
     }
-    // if a password change is requested, verify the old one
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      toast(L("Firebase session expired. Sign in again.", "Firebase সেশন শেষ হয়েছে। আবার লগইন করো।"), "warn");
+      return;
+    }
+
+    // Re-authenticate before changing credentials in Firebase Auth.
     if (newPass || confirmPass) {
-      if (oldPass.trim() !== cur.password) {
-        toast(L("Current password is incorrect", "বর্তমান পাসওয়ার্ড ভুল"), "warn");
+      if (!oldPass) {
+        toast(L("Enter your current password", "বর্তমান পাসওয়ার্ড লিখো"), "warn");
         return;
       }
       if (newPass.length < 6) {
@@ -115,28 +128,56 @@ export const SettingsPrivacy: React.FC = () => {
         return;
       }
     }
-    const finalPass = newPass || cur.password;
-    const ok = setOwnerCredentials(email.trim(), finalPass);
-    if (ok) {
+    try {
+      if (newPass) {
+        await reauthenticateWithCredential(
+          firebaseUser,
+          EmailAuthProvider.credential(firebaseUser.email || cur.email, oldPass)
+        );
+        await updatePassword(firebaseUser, newPass);
+      }
+      if (email.trim().toLowerCase() !== (firebaseUser.email || "").toLowerCase()) {
+        await updateEmail(firebaseUser, email.trim());
+      }
+      const finalPass = newPass || cur.password;
+      setOwnerCredentials(email.trim(), finalPass);
       setOldPass("");
       setNewPass("");
       setConfirmPass("");
       setSavedAt(Date.now());
       toast(L("Admin credentials updated", "অ্যাডমিন ক্রেডেনশিয়াল আপডেট হয়েছে"), "xp");
-    } else {
-      toast(L("Could not save credentials", "ক্রেডেনশিয়াল সেভ করা যায়নি"), "warn");
+    } catch (error: any) {
+      console.error("[cybernova] Firebase credential update failed:", error);
+      toast(L("Could not update Firebase credentials", "Firebase ক্রেডেনশিয়াল আপডেট করা যায়নি"), "warn");
     }
   };
 
-  const restoreDefaults = () => {
+  const restoreDefaults = async () => {
     if (!confirm(L("Restore the default admin credentials?", "ডিফল্ট অ্যাডমিন ক্রেডেনশিয়াল ফিরিয়ে আনবে?"))) return;
-    resetOwnerCredentials();
-    const d = getOwnerCredentials();
-    setEmail(d.email);
-    setOldPass("");
-    setNewPass("");
-    setConfirmPass("");
-    toast(L("Default credentials restored", "ডিফল্ট ক্রেডেনশিয়াল ফিরিয়ে আনা হয়েছে"), "warn");
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser || !oldPass) {
+      toast(L("Enter your current password first", "আগে বর্তমান পাসওয়ার্ড লিখো"), "warn");
+      return;
+    }
+    try {
+      await reauthenticateWithCredential(
+        firebaseUser,
+        EmailAuthProvider.credential(firebaseUser.email || email, oldPass)
+      );
+      await updatePassword(firebaseUser, "Admin#nova");
+      if ((firebaseUser.email || "").toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        await updateEmail(firebaseUser, ADMIN_EMAIL);
+      }
+      resetOwnerCredentials();
+      setEmail(ADMIN_EMAIL);
+      setOldPass("");
+      setNewPass("");
+      setConfirmPass("");
+      toast(L("Default Firebase credentials restored", "ডিফল্ট Firebase ক্রেডেনশিয়াল ফিরিয়ে আনা হয়েছে"), "warn");
+    } catch (error) {
+      console.error("[cybernova] Firebase credential restore failed:", error);
+      toast(L("Could not restore Firebase credentials", "Firebase ক্রেডেনশিয়াল ফিরিয়ে আনা যায়নি"), "warn");
+    }
   };
 
   const copyEmail = async () => {

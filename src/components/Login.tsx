@@ -157,6 +157,9 @@ export const Login: React.FC = () => {
         }
       }
       const storedProfile = await getUserProfile(signInCred.user.uid);
+      const firebaseIsAdmin =
+        signInCred.user.email?.toLowerCase() === "fahadahmad.cyber@gmail.com" ||
+        storedProfile?.role === "admin";
       if (storedProfile?.status === "disabled") {
         await signOut(auth);
         setFormError(isBn ? "এই অ্যাকাউন্টটি অ্যাডমিন নিষ্ক্রিয় করেছেন।" : "This account has been disabled by an administrator.");
@@ -165,11 +168,11 @@ export const Login: React.FC = () => {
         return;
       }
       enter(
-        isOwner
+        firebaseIsAdmin
           ? "Owner Admin"
           : signInCred.user.displayName?.trim() || displayFromEmail(trimmedEmail),
         trimmedEmail,
-        isOwner,
+        firebaseIsAdmin,
         "",
         signInCred.user.uid
       );
@@ -205,12 +208,15 @@ export const Login: React.FC = () => {
       const googleEmail = googleUser.email?.trim() || "";
       const googleName = googleUser.displayName?.trim() || displayFromEmail(googleEmail);
       const storedProfile = await getUserProfile(googleUser.uid);
+      const firebaseIsAdmin =
+        googleEmail.toLowerCase() === "fahadahmad.cyber@gmail.com" ||
+        storedProfile?.role === "admin";
       if (storedProfile?.status === "disabled") {
         await signOut(auth);
         setFormError(isBn ? "এই অ্যাকাউন্টটি অ্যাডমিন নিষ্ক্রিয় করেছেন।" : "This account has been disabled by an administrator.");
         return;
       }
-      enter(googleName, googleEmail, false, googleUser.photoURL || "", googleUser.uid);
+      enter(googleName, googleEmail, firebaseIsAdmin, googleUser.photoURL || "", googleUser.uid);
     } catch (e: any) {
       const code = e?.code || "";
       const message = e?.message || String(e);

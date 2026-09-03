@@ -18,6 +18,20 @@ service cloud.firestore {
       );
     }
 
+    function isTicketOwner(ticketData) {
+      return isSignedIn() && (
+        ticketData.userId == request.auth.uid ||
+        ticketData.studentEmail == request.auth.token.email ||
+        ticketData.fromEmail == request.auth.token.email ||
+        ticketData.userEmail == request.auth.token.email
+      );
+    }
+
+    function isRoomParticipant(roomData) {
+      return isSignedIn() &&
+        roomData.participantIds.hasAny([request.auth.uid, request.auth.token.email]);
+    }
+
     match /admin/{document=**} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
@@ -41,35 +55,41 @@ service cloud.firestore {
     match /support_tickets/{ticketId} {
       allow create: if isSignedIn();
       allow read: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isAdmin() ||
+        isTicketOwner(resource.data) || isTicketOwner(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /support_messages/{messageId} {
       allow create: if isSignedIn();
       allow read: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isAdmin() ||
+        isTicketOwner(resource.data) || isTicketOwner(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /community_rooms/{roomId} {
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && isRoomParticipant(request.resource.data);
       allow read: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isAdmin() || isRoomParticipant(resource.data);
       allow delete: if isAdmin();
     }
 
     match /community_rooms/{roomId}/messages/{messageId} {
-      allow create: if isSignedIn();
+      allow create: if isAdmin() ||
+        isRoomParticipant(get(/databases/$(database)/documents/community_rooms/$(roomId)).data);
       allow read: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isAdmin() ||
+        isRoomParticipant(get(/databases/$(database)/documents/community_rooms/$(roomId)).data);
       allow delete: if isAdmin();
     }
 
     match /progress/{progressId} {
-      allow create: if isSignedIn();
+      allow create: if isAdmin() ||
+        (request.auth.uid == progressId && request.resource.data.userId == request.auth.uid);
       allow read: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isAdmin() ||
+        (request.auth.uid == progressId && request.resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
     }
 
@@ -83,7 +103,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isSignedIn() && request.auth.uid == userId &&
         (request.resource.data.role == 'user' || isAdmin());
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Community currently reads the directory to show available members.
+      allow read: if isSignedIn();
       allow update: if isSignedIn() &&
         (isAdmin() ||
           (request.auth.uid == userId &&
